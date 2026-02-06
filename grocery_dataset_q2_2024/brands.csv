@@ -1,0 +1,16 @@
+brand_id,brand_name,brand_type
+1,FreshFarm,Organic-first
+2,PureHarvest,Organic-first
+3,GreenLeaf,Organic-first
+4,NatureNest,Organic-first
+5,DailyChoice,Private Label
+6,ValueMart,Private Label
+7,HomeBest,Private Label
+8,QuickBuy,Private Label
+9,TasteCo,National
+10,Snackify,National
+11,CrunchyBite,National
+12,BakeHouse,National
+13,CoolSip,National
+14,DairyPure,National
+15,UrbanEats,Local

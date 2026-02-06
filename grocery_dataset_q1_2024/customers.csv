@@ -1,0 +1,401 @@
+customer_id,city,state,household_size,organic_preference
+C0001,Chennai,Tamil Nadu,1,Medium
+C0002,Mumbai,Maharashtra,2,Low
+C0003,Chennai,Tamil Nadu,5,Low
+C0004,Kochi,Kerala,1,Low
+C0005,Mumbai,Maharashtra,2,Medium
+C0006,Bangalore,Karnataka,5,Low
+C0007,Kochi,Kerala,2,Medium
+C0008,Delhi,Delhi,1,High
+C0009,Hyderabad,Telangana,4,Low
+C0010,Hyderabad,Telangana,2,High
+C0011,Pune,Maharashtra,1,Low
+C0012,Chennai,Tamil Nadu,3,High
+C0013,Delhi,Delhi,1,Medium
+C0014,Chennai,Tamil Nadu,4,Low
+C0015,Delhi,Delhi,5,High
+C0016,Pune,Maharashtra,5,Low
+C0017,Chennai,Tamil Nadu,1,Medium
+C0018,Delhi,Delhi,1,High
+C0019,Chennai,Tamil Nadu,4,Low
+C0020,Pune,Maharashtra,2,Low
+C0021,Mumbai,Maharashtra,3,Medium
+C0022,Chennai,Tamil Nadu,5,Medium
+C0023,Mumbai,Maharashtra,2,Medium
+C0024,Delhi,Delhi,5,Low
+C0025,Pune,Maharashtra,1,Low
+C0026,Bangalore,Karnataka,3,Medium
+C0027,Chennai,Tamil Nadu,2,High
+C0028,Pune,Maharashtra,2,Medium
+C0029,Kochi,Kerala,4,Low
+C0030,Hyderabad,Telangana,2,Medium
+C0031,Delhi,Delhi,5,Medium
+C0032,Kochi,Kerala,3,Low
+C0033,Hyderabad,Telangana,5,Medium
+C0034,Bangalore,Karnataka,1,Low
+C0035,Hyderabad,Telangana,4,Medium
+C0036,Kochi,Kerala,4,Medium
+C0037,Coimbatore,Tamil Nadu,5,Low
+C0038,Bangalore,Karnataka,1,Medium
+C0039,Delhi,Delhi,3,Low
+C0040,Kochi,Kerala,2,Medium
+C0041,Delhi,Delhi,5,High
+C0042,Chennai,Tamil Nadu,3,High
+C0043,Mumbai,Maharashtra,2,Low
+C0044,Hyderabad,Telangana,5,High
+C0045,Bangalore,Karnataka,5,Low
+C0046,Bangalore,Karnataka,1,High
+C0047,Delhi,Delhi,2,Low
+C0048,Chennai,Tamil Nadu,1,Medium
+C0049,Chennai,Tamil Nadu,5,High
+C0050,Hyderabad,Telangana,4,High
+C0051,Hyderabad,Telangana,3,Medium
+C0052,Kochi,Kerala,2,High
+C0053,Mumbai,Maharashtra,3,Low
+C0054,Pune,Maharashtra,4,High
+C0055,Coimbatore,Tamil Nadu,1,Low
+C0056,Chennai,Tamil Nadu,3,Low
+C0057,Mumbai,Maharashtra,5,Low
+C0058,Chennai,Tamil Nadu,1,Low
+C0059,Bangalore,Karnataka,3,Low
+C0060,Mumbai,Maharashtra,3,Medium
+C0061,Mumbai,Maharashtra,5,Low
+C0062,Coimbatore,Tamil Nadu,2,High
+C0063,Kochi,Kerala,2,Low
+C0064,Kochi,Kerala,3,Medium
+C0065,Coimbatore,Tamil Nadu,1,Medium
+C0066,Chennai,Tamil Nadu,1,Medium
+C0067,Pune,Maharashtra,1,Low
+C0068,Mumbai,Maharashtra,5,Medium
+C0069,Kochi,Kerala,2,Low
+C0070,Mumbai,Maharashtra,1,Medium
+C0071,Chennai,Tamil Nadu,1,Medium
+C0072,Bangalore,Karnataka,1,High
+C0073,Mumbai,Maharashtra,2,Medium
+C0074,Coimbatore,Tamil Nadu,2,High
+C0075,Bangalore,Karnataka,2,Low
+C0076,Kochi,Kerala,3,High
+C0077,Coimbatore,Tamil Nadu,3,Medium
+C0078,Coimbatore,Tamil Nadu,2,Low
+C0079,Mumbai,Maharashtra,1,Medium
+C0080,Bangalore,Karnataka,3,Low
+C0081,Coimbatore,Tamil Nadu,5,High
+C0082,Hyderabad,Telangana,1,High
+C0083,Chennai,Tamil Nadu,2,Low
+C0084,Chennai,Tamil Nadu,2,Medium
+C0085,Mumbai,Maharashtra,5,Medium
+C0086,Chennai,Tamil Nadu,4,Medium
+C0087,Pune,Maharashtra,3,Low
+C0088,Pune,Maharashtra,2,Low
+C0089,Hyderabad,Telangana,3,Medium
+C0090,Chennai,Tamil Nadu,1,Medium
+C0091,Chennai,Tamil Nadu,1,Medium
+C0092,Delhi,Delhi,2,High
+C0093,Chennai,Tamil Nadu,2,Low
+C0094,Hyderabad,Telangana,4,High
+C0095,Delhi,Delhi,5,High
+C0096,Bangalore,Karnataka,5,Low
+C0097,Chennai,Tamil Nadu,2,Low
+C0098,Chennai,Tamil Nadu,5,Low
+C0099,Delhi,Delhi,5,Low
+C0100,Pune,Maharashtra,2,Medium
+C0101,Delhi,Delhi,5,Medium
+C0102,Bangalore,Karnataka,1,Medium
+C0103,Delhi,Delhi,1,Low
+C0104,Hyderabad,Telangana,3,Low
+C0105,Coimbatore,Tamil Nadu,5,Medium
+C0106,Bangalore,Karnataka,1,Low
+C0107,Hyderabad,Telangana,5,Low
+C0108,Pune,Maharashtra,5,Medium
+C0109,Kochi,Kerala,2,Low
+C0110,Pune,Maharashtra,1,High
+C0111,Mumbai,Maharashtra,2,Medium
+C0112,Pune,Maharashtra,5,High
+C0113,Kochi,Kerala,5,Medium
+C0114,Mumbai,Maharashtra,2,High
+C0115,Hyderabad,Telangana,4,Low
+C0116,Pune,Maharashtra,4,High
+C0117,Mumbai,Maharashtra,3,Low
+C0118,Chennai,Tamil Nadu,4,High
+C0119,Coimbatore,Tamil Nadu,2,Low
+C0120,Coimbatore,Tamil Nadu,3,Low
+C0121,Mumbai,Maharashtra,2,Low
+C0122,Mumbai,Maharashtra,4,Low
+C0123,Chennai,Tamil Nadu,3,Low
+C0124,Kochi,Kerala,5,Low
+C0125,Bangalore,Karnataka,1,High
+C0126,Delhi,Delhi,2,Medium
+C0127,Delhi,Delhi,1,Low
+C0128,Kochi,Kerala,3,Medium
+C0129,Pune,Maharashtra,4,Medium
+C0130,Chennai,Tamil Nadu,4,High
+C0131,Mumbai,Maharashtra,3,Low
+C0132,Kochi,Kerala,1,Medium
+C0133,Mumbai,Maharashtra,3,Medium
+C0134,Pune,Maharashtra,5,Low
+C0135,Chennai,Tamil Nadu,3,Medium
+C0136,Kochi,Kerala,3,Medium
+C0137,Delhi,Delhi,5,Low
+C0138,Kochi,Kerala,4,Medium
+C0139,Hyderabad,Telangana,5,Medium
+C0140,Kochi,Kerala,5,High
+C0141,Delhi,Delhi,3,Low
+C0142,Pune,Maharashtra,4,Medium
+C0143,Mumbai,Maharashtra,5,Medium
+C0144,Hyderabad,Telangana,1,Low
+C0145,Pune,Maharashtra,1,High
+C0146,Mumbai,Maharashtra,3,Low
+C0147,Mumbai,Maharashtra,2,Low
+C0148,Mumbai,Maharashtra,4,Medium
+C0149,Chennai,Tamil Nadu,4,Medium
+C0150,Mumbai,Maharashtra,4,Medium
+C0151,Mumbai,Maharashtra,2,Medium
+C0152,Bangalore,Karnataka,1,High
+C0153,Mumbai,Maharashtra,2,High
+C0154,Coimbatore,Tamil Nadu,1,Medium
+C0155,Chennai,Tamil Nadu,4,Low
+C0156,Coimbatore,Tamil Nadu,5,High
+C0157,Pune,Maharashtra,4,Medium
+C0158,Kochi,Kerala,5,Medium
+C0159,Hyderabad,Telangana,4,Medium
+C0160,Mumbai,Maharashtra,3,High
+C0161,Coimbatore,Tamil Nadu,2,Low
+C0162,Chennai,Tamil Nadu,3,Low
+C0163,Pune,Maharashtra,3,High
+C0164,Chennai,Tamil Nadu,2,Low
+C0165,Kochi,Kerala,2,Medium
+C0166,Chennai,Tamil Nadu,4,Medium
+C0167,Coimbatore,Tamil Nadu,4,Low
+C0168,Kochi,Kerala,4,High
+C0169,Bangalore,Karnataka,5,Low
+C0170,Bangalore,Karnataka,3,Low
+C0171,Kochi,Kerala,4,Medium
+C0172,Mumbai,Maharashtra,4,Low
+C0173,Kochi,Kerala,4,Low
+C0174,Pune,Maharashtra,4,Medium
+C0175,Coimbatore,Tamil Nadu,2,High
+C0176,Bangalore,Karnataka,4,Medium
+C0177,Bangalore,Karnataka,1,Medium
+C0178,Hyderabad,Telangana,4,Low
+C0179,Delhi,Delhi,4,Low
+C0180,Coimbatore,Tamil Nadu,3,Low
+C0181,Kochi,Kerala,3,High
+C0182,Kochi,Kerala,3,High
+C0183,Coimbatore,Tamil Nadu,1,Medium
+C0184,Bangalore,Karnataka,3,Low
+C0185,Chennai,Tamil Nadu,1,High
+C0186,Mumbai,Maharashtra,2,High
+C0187,Hyderabad,Telangana,2,Low
+C0188,Chennai,Tamil Nadu,5,High
+C0189,Coimbatore,Tamil Nadu,3,High
+C0190,Hyderabad,Telangana,5,Medium
+C0191,Chennai,Tamil Nadu,2,High
+C0192,Chennai,Tamil Nadu,5,Low
+C0193,Delhi,Delhi,5,Medium
+C0194,Kochi,Kerala,4,High
+C0195,Mumbai,Maharashtra,1,Medium
+C0196,Mumbai,Maharashtra,1,Medium
+C0197,Delhi,Delhi,5,High
+C0198,Bangalore,Karnataka,3,Medium
+C0199,Pune,Maharashtra,1,Medium
+C0200,Pune,Maharashtra,1,High
+C0201,Coimbatore,Tamil Nadu,1,Medium
+C0202,Pune,Maharashtra,4,Medium
+C0203,Kochi,Kerala,2,Medium
+C0204,Delhi,Delhi,5,High
+C0205,Coimbatore,Tamil Nadu,4,Medium
+C0206,Delhi,Delhi,3,High
+C0207,Chennai,Tamil Nadu,3,High
+C0208,Mumbai,Maharashtra,4,Medium
+C0209,Kochi,Kerala,3,Low
+C0210,Pune,Maharashtra,2,Medium
+C0211,Pune,Maharashtra,3,Low
+C0212,Delhi,Delhi,5,Low
+C0213,Mumbai,Maharashtra,1,Low
+C0214,Kochi,Kerala,4,Medium
+C0215,Mumbai,Maharashtra,4,Medium
+C0216,Coimbatore,Tamil Nadu,4,High
+C0217,Chennai,Tamil Nadu,3,Low
+C0218,Mumbai,Maharashtra,3,Medium
+C0219,Pune,Maharashtra,4,Medium
+C0220,Pune,Maharashtra,4,High
+C0221,Pune,Maharashtra,3,Medium
+C0222,Delhi,Delhi,3,Low
+C0223,Chennai,Tamil Nadu,2,Low
+C0224,Hyderabad,Telangana,2,Low
+C0225,Coimbatore,Tamil Nadu,3,Medium
+C0226,Delhi,Delhi,1,High
+C0227,Delhi,Delhi,2,Low
+C0228,Delhi,Delhi,1,Medium
+C0229,Hyderabad,Telangana,3,Low
+C0230,Bangalore,Karnataka,5,Low
+C0231,Hyderabad,Telangana,4,Low
+C0232,Bangalore,Karnataka,5,Low
+C0233,Coimbatore,Tamil Nadu,4,Low
+C0234,Bangalore,Karnataka,3,High
+C0235,Coimbatore,Tamil Nadu,1,High
+C0236,Kochi,Kerala,4,Low
+C0237,Bangalore,Karnataka,2,Low
+C0238,Delhi,Delhi,1,High
+C0239,Chennai,Tamil Nadu,5,High
+C0240,Mumbai,Maharashtra,5,Low
+C0241,Coimbatore,Tamil Nadu,3,High
+C0242,Kochi,Kerala,3,Medium
+C0243,Bangalore,Karnataka,5,High
+C0244,Chennai,Tamil Nadu,2,Medium
+C0245,Delhi,Delhi,1,Low
+C0246,Hyderabad,Telangana,5,Low
+C0247,Bangalore,Karnataka,4,Medium
+C0248,Coimbatore,Tamil Nadu,3,Low
+C0249,Delhi,Delhi,3,Medium
+C0250,Coimbatore,Tamil Nadu,1,Medium
+C0251,Delhi,Delhi,5,Medium
+C0252,Mumbai,Maharashtra,4,Low
+C0253,Mumbai,Maharashtra,2,High
+C0254,Hyderabad,Telangana,1,Low
+C0255,Delhi,Delhi,5,Medium
+C0256,Delhi,Delhi,4,Low
+C0257,Delhi,Delhi,4,High
+C0258,Coimbatore,Tamil Nadu,4,Low
+C0259,Bangalore,Karnataka,4,Medium
+C0260,Delhi,Delhi,1,Low
+C0261,Bangalore,Karnataka,3,Medium
+C0262,Hyderabad,Telangana,4,Medium
+C0263,Coimbatore,Tamil Nadu,3,Low
+C0264,Kochi,Kerala,4,High
+C0265,Coimbatore,Tamil Nadu,3,Medium
+C0266,Pune,Maharashtra,1,High
+C0267,Pune,Maharashtra,4,Medium
+C0268,Delhi,Delhi,4,High
+C0269,Bangalore,Karnataka,4,Low
+C0270,Delhi,Delhi,3,Low
+C0271,Kochi,Kerala,5,High
+C0272,Bangalore,Karnataka,5,Medium
+C0273,Bangalore,Karnataka,2,Medium
+C0274,Coimbatore,Tamil Nadu,4,High
+C0275,Mumbai,Maharashtra,3,Medium
+C0276,Delhi,Delhi,4,High
+C0277,Coimbatore,Tamil Nadu,1,Low
+C0278,Mumbai,Maharashtra,2,Low
+C0279,Bangalore,Karnataka,5,Medium
+C0280,Mumbai,Maharashtra,1,Medium
+C0281,Chennai,Tamil Nadu,2,Medium
+C0282,Delhi,Delhi,5,Medium
+C0283,Kochi,Kerala,4,High
+C0284,Mumbai,Maharashtra,4,Medium
+C0285,Kochi,Kerala,2,High
+C0286,Hyderabad,Telangana,1,Low
+C0287,Kochi,Kerala,3,High
+C0288,Delhi,Delhi,1,Low
+C0289,Delhi,Delhi,5,Medium
+C0290,Coimbatore,Tamil Nadu,2,Medium
+C0291,Coimbatore,Tamil Nadu,3,Low
+C0292,Kochi,Kerala,4,High
+C0293,Mumbai,Maharashtra,2,Medium
+C0294,Mumbai,Maharashtra,4,Low
+C0295,Coimbatore,Tamil Nadu,4,Low
+C0296,Hyderabad,Telangana,4,High
+C0297,Hyderabad,Telangana,5,High
+C0298,Pune,Maharashtra,1,High
+C0299,Coimbatore,Tamil Nadu,1,Medium
+C0300,Coimbatore,Tamil Nadu,1,Medium
+C0301,Kochi,Kerala,2,Low
+C0302,Delhi,Delhi,3,Medium
+C0303,Kochi,Kerala,1,High
+C0304,Kochi,Kerala,3,Medium
+C0305,Coimbatore,Tamil Nadu,5,Low
+C0306,Chennai,Tamil Nadu,2,Medium
+C0307,Delhi,Delhi,2,Medium
+C0308,Kochi,Kerala,1,High
+C0309,Chennai,Tamil Nadu,4,Low
+C0310,Delhi,Delhi,1,Low
+C0311,Bangalore,Karnataka,3,Low
+C0312,Kochi,Kerala,2,Low
+C0313,Kochi,Kerala,5,Medium
+C0314,Hyderabad,Telangana,2,Low
+C0315,Kochi,Kerala,5,Medium
+C0316,Coimbatore,Tamil Nadu,5,Low
+C0317,Coimbatore,Tamil Nadu,3,Medium
+C0318,Bangalore,Karnataka,4,High
+C0319,Hyderabad,Telangana,1,Medium
+C0320,Pune,Maharashtra,5,Low
+C0321,Kochi,Kerala,3,Medium
+C0322,Delhi,Delhi,2,High
+C0323,Coimbatore,Tamil Nadu,1,Low
+C0324,Pune,Maharashtra,5,Low
+C0325,Delhi,Delhi,1,High
+C0326,Kochi,Kerala,3,Low
+C0327,Bangalore,Karnataka,5,Medium
+C0328,Delhi,Delhi,2,Medium
+C0329,Pune,Maharashtra,2,Medium
+C0330,Delhi,Delhi,2,Medium
+C0331,Bangalore,Karnataka,3,High
+C0332,Bangalore,Karnataka,5,Low
+C0333,Hyderabad,Telangana,1,High
+C0334,Pune,Maharashtra,4,Low
+C0335,Hyderabad,Telangana,5,High
+C0336,Pune,Maharashtra,5,Medium
+C0337,Delhi,Delhi,2,Low
+C0338,Coimbatore,Tamil Nadu,3,Medium
+C0339,Pune,Maharashtra,1,Medium
+C0340,Chennai,Tamil Nadu,2,High
+C0341,Mumbai,Maharashtra,4,High
+C0342,Pune,Maharashtra,1,High
+C0343,Bangalore,Karnataka,3,Medium
+C0344,Coimbatore,Tamil Nadu,3,Medium
+C0345,Delhi,Delhi,5,Low
+C0346,Pune,Maharashtra,1,Medium
+C0347,Coimbatore,Tamil Nadu,1,Medium
+C0348,Pune,Maharashtra,5,Low
+C0349,Chennai,Tamil Nadu,4,High
+C0350,Delhi,Delhi,4,Low
+C0351,Bangalore,Karnataka,1,Low
+C0352,Coimbatore,Tamil Nadu,1,Low
+C0353,Hyderabad,Telangana,4,Medium
+C0354,Kochi,Kerala,5,Medium
+C0355,Hyderabad,Telangana,4,Medium
+C0356,Coimbatore,Tamil Nadu,5,Medium
+C0357,Delhi,Delhi,1,Medium
+C0358,Mumbai,Maharashtra,4,Medium
+C0359,Mumbai,Maharashtra,3,Low
+C0360,Pune,Maharashtra,5,High
+C0361,Pune,Maharashtra,1,Low
+C0362,Mumbai,Maharashtra,1,High
+C0363,Coimbatore,Tamil Nadu,1,Medium
+C0364,Bangalore,Karnataka,1,High
+C0365,Mumbai,Maharashtra,2,High
+C0366,Mumbai,Maharashtra,1,High
+C0367,Mumbai,Maharashtra,5,Low
+C0368,Mumbai,Maharashtra,3,High
+C0369,Bangalore,Karnataka,3,High
+C0370,Hyderabad,Telangana,2,Medium
+C0371,Hyderabad,Telangana,1,Medium
+C0372,Bangalore,Karnataka,2,Low
+C0373,Mumbai,Maharashtra,5,Low
+C0374,Hyderabad,Telangana,3,Low
+C0375,Kochi,Kerala,5,Low
+C0376,Chennai,Tamil Nadu,4,Medium
+C0377,Pune,Maharashtra,5,Medium
+C0378,Coimbatore,Tamil Nadu,5,Low
+C0379,Bangalore,Karnataka,5,Low
+C0380,Bangalore,Karnataka,1,High
+C0381,Kochi,Kerala,4,Medium
+C0382,Coimbatore,Tamil Nadu,4,Low
+C0383,Chennai,Tamil Nadu,3,Medium
+C0384,Chennai,Tamil Nadu,2,Low
+C0385,Pune,Maharashtra,4,High
+C0386,Delhi,Delhi,4,Medium
+C0387,Kochi,Kerala,1,High
+C0388,Chennai,Tamil Nadu,5,Medium
+C0389,Mumbai,Maharashtra,4,Medium
+C0390,Mumbai,Maharashtra,4,Low
+C0391,Coimbatore,Tamil Nadu,4,Medium
+C0392,Chennai,Tamil Nadu,3,Medium
+C0393,Delhi,Delhi,3,High
+C0394,Coimbatore,Tamil Nadu,1,Low
+C0395,Chennai,Tamil Nadu,1,Medium
+C0396,Pune,Maharashtra,2,Medium
+C0397,Pune,Maharashtra,1,Medium
+C0398,Kochi,Kerala,1,High
+C0399,Delhi,Delhi,3,Low
+C0400,Mumbai,Maharashtra,2,Medium

@@ -1,0 +1,7 @@
+category_id,category_name,processing_level
+1,Staples,Processed
+2,Produce,Unprocessed
+3,Snacks,Ultra-Processed
+4,Bakery,Processed
+5,Beverages,Ultra-Processed
+6,Dairy,Processed

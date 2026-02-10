@@ -3,29 +3,24 @@ import random
 from datetime import datetime, timedelta, time
 import os
 import json
+from src.config import *
+import numpy as np
 
-random.seed(42)
 
-# =====================
-# CONFIG
-# =====================
-NUM_CUSTOMERS = 400
-MIN_PURCHASES_PER_WEEK=1
-MAX_PURCHASES_PER_WEEK=5
-START_DATE = datetime(2024, 1, 1)
-END_DATE = datetime(2024, 3, 30)
-PRODUCTS_PER_CATEGORY = 30
-DATA_VERSION = "q1_2024_v1"
-BASE_DATA_DIR = "data/raw"
 
-#OUTPUT_DIR = f"{BASE_DATA_DIR}/{DATA_VERSION}"
-#os.makedirs(OUTPUT_DIR, exist_ok=True)
+START_DATE = datetime.strptime(START_DATE, "%Y-%m-%d").date()
+END_DATE = datetime.strptime(END_DATE, "%Y-%m-%d").date()
+
+
+
 # ===============================
 # FREEZE RANDOMNESS
 # ===============================
 
-RANDOM_SEED = 42
-random.seed(RANDOM_SEED)
+random.seed(SEED)
+np.random.seed(SEED)
+OUTPUT_DIR = f"{BASE_DATA_DIR}/{DATA_VERSION}"
+
 
 # ===============================
 # CREATE VERSIONED OUTPUT DIR
@@ -293,19 +288,19 @@ print("✅ Optimized Q2-2024 grocery nutrition dataset generated.")
 metadata = {
     "dataset_version": DATA_VERSION,
     "generated_at_utc": datetime.utcnow().isoformat(),
-    "time_range": {
-        "start": START_DATE.strftime("%Y-%m-%d"),
-        "end": END_DATE.strftime("%Y-%m-%d")
+    "config": {
+        "seed": SEED,
+        "num_customers": NUM_CUSTOMERS,
+        "min_purchases_per_week": MIN_PURCHASES_PER_WEEK,
+        "max_purchases_per_week": MAX_PURCHASES_PER_WEEK,
+        "start_date": START_DATE.strftime("%Y-%m-%d"),
+        "end_date": END_DATE.strftime("%Y-%m-%d"),
+        "products_per_category": PRODUCTS_PER_CATEGORY
     },
-    "num_customers": NUM_CUSTOMERS,
-    "purchase_frequency": {
-        "min_per_week": MIN_PURCHASES_PER_WEEK,
-        "max_per_week": MAX_PURCHASES_PER_WEEK
-    },
-    "random_seed": RANDOM_SEED,
     "schema_version": "v1",
     "frozen": True
 }
+
 
 with open(f"{OUTPUT_DIR}/_METADATA.json", "w", encoding="utf-8") as f:
     json.dump(metadata, f, indent=2)

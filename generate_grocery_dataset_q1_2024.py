@@ -1,42 +1,50 @@
 import csv
 import random
+import json
 from datetime import datetime, timedelta, time
 import os
-import json
-from src.config import *
-import numpy as np
 
+# =====================
+# VERSION GUARD
+# =====================
+DATA_VERSION = "q1_2024_v1"
+assert DATA_VERSION.endswith("_v1") or DATA_VERSION.endswith("_v2"), \
+    "Dataset version must be explicit (e.g., q1_2024_v1)"
 
+random.seed(42)
 
-START_DATE = datetime.strptime(START_DATE, "%Y-%m-%d").date()
-END_DATE = datetime.strptime(END_DATE, "%Y-%m-%d").date()
-
-
-
-# ===============================
-# FREEZE RANDOMNESS
-# ===============================
-
-random.seed(SEED)
-np.random.seed(SEED)
-OUTPUT_DIR = f"{BASE_DATA_DIR}/{DATA_VERSION}"
-
-
-# ===============================
-# CREATE VERSIONED OUTPUT DIR
-# ===============================
+# =====================
+# CONFIG
+# =====================
+NUM_CUSTOMERS = 400
+START_DATE = datetime(2024, 1, 1)
+END_DATE = datetime(2024, 3, 31)
+PRODUCTS_PER_CATEGORY = 30
+BASE_DATA_DIR = "data/raw"
 
 OUTPUT_DIR = f"{BASE_DATA_DIR}/{DATA_VERSION}"
-
 if os.path.exists(OUTPUT_DIR):
-    raise RuntimeError(
-        f"Dataset version '{DATA_VERSION}' already exists. "
-        "Increment DATA_VERSION to create a new frozen snapshot."
-    )
+    raise RuntimeError("Dataset already exists. Create a new version.")
 
 os.makedirs(OUTPUT_DIR)
 
-
+# =====================
+# DATASET METADATA (FREEZE CONTRACT)
+# =====================
+DATASET_METADATA = {
+    "dataset_name": "Grocery Nutrition Transactions",
+    "data_version": DATA_VERSION,
+    "created_at": datetime.utcnow().isoformat(),
+    "date_range": {
+        "start": START_DATE.strftime("%Y-%m-%d"),
+        "end": END_DATE.strftime("%Y-%m-%d")
+    },
+    "num_customers": NUM_CUSTOMERS,
+    "products_per_category": PRODUCTS_PER_CATEGORY,
+    "random_seed": 42,
+    "schema_frozen": True,
+    "notes": "Q1 synthetic grocery + nutrition dataset. Do not modify."
+}
 
 # =====================
 # MASTER DATA
@@ -135,7 +143,6 @@ def sample_nutrition(category):
     tpl = NUTRITION_TEMPLATES[category]
     if tpl == "Snacks":
         tpl = NUTRITION_TEMPLATES["Snacks"]
-
     return {k: sample_value(v) for k, v in tpl.items()}
 
 # =====================
@@ -229,7 +236,7 @@ with open(f"{OUTPUT_DIR}/nutrition.csv", "w", newline="") as f:
     writer.writerows(nutrition)
 
 # =====================
-# TRANSACTIONS (1–5 / WEEK)
+# TRANSACTIONS
 # =====================
 txn_f = open(f"{OUTPUT_DIR}/transactions.csv", "w", newline="")
 item_f = open(f"{OUTPUT_DIR}/transaction_items.csv", "w", newline="")
@@ -279,29 +286,10 @@ while current <= END_DATE:
 txn_f.close()
 item_f.close()
 
-print("✅ Optimized Q2-2024 grocery nutrition dataset generated.")
+# =====================
+# WRITE METADATA (FREEZE)
+# =====================
+with open(f"{OUTPUT_DIR}/DATASET_METADATA.json", "w") as f:
+    json.dump(DATASET_METADATA, f, indent=4)
 
-# ===============================
-# DATASET METADATA (FREEZE RECORD)
-# ===============================
-
-metadata = {
-    "dataset_version": DATA_VERSION,
-    "generated_at_utc": datetime.utcnow().isoformat(),
-    "config": {
-        "seed": SEED,
-        "num_customers": NUM_CUSTOMERS,
-        "min_purchases_per_week": MIN_PURCHASES_PER_WEEK,
-        "max_purchases_per_week": MAX_PURCHASES_PER_WEEK,
-        "start_date": START_DATE.strftime("%Y-%m-%d"),
-        "end_date": END_DATE.strftime("%Y-%m-%d"),
-        "products_per_category": PRODUCTS_PER_CATEGORY
-    },
-    "schema_version": "v1",
-    "frozen": True
-}
-
-
-with open(f"{OUTPUT_DIR}/_METADATA.json", "w", encoding="utf-8") as f:
-    json.dump(metadata, f, indent=2)
-
+print("✅ Frozen Q1-2024 grocery nutrition dataset generated.")

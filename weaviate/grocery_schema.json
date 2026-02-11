@@ -1,0 +1,80 @@
+{
+  "classes": [
+    {
+      "class": "ProductProfile",
+      "description": "Grocery product nutrition and health facts",
+      "vectorizer": "text2vec-transformers",
+      "properties": [
+        {
+          "name": "product_id",
+          "dataType": ["text"],
+          "indexFilterable": true
+        },
+        {
+          "name": "product_name",
+          "dataType": ["text"]
+        },
+        {
+          "name": "category",
+          "dataType": ["text"]
+        },
+        {
+          "name": "brand",
+          "dataType": ["text"]
+        },
+        {
+          "name": "processing_level",
+          "dataType": ["text"]
+        },
+        {
+          "name": "is_organic",
+          "dataType": ["boolean"]
+        },
+        {
+          "name": "nutrition_summary",
+          "dataType": ["text"],
+          "description": "Human-readable nutrition facts for RAG"
+        }
+      ]
+    },
+    {
+      "class": "CategoryProfile",
+      "description": "Food category health and processing information",
+      "vectorizer": "text2vec-transformers",
+      "properties": [
+        {
+          "name": "category_name",
+          "dataType": ["text"]
+        },
+        {
+          "name": "processing_level",
+          "dataType": ["text"]
+        },
+        {
+          "name": "health_description",
+          "dataType": ["text"]
+        }
+      ]
+    },
+    {
+      "class": "CustomerNutritionSummary",
+      "description": "Aggregated nutrition consumption per customer",
+      "vectorizer": "text2vec-transformers",
+      "properties": [
+        {
+          "name": "customer_id",
+          "dataType": ["text"],
+          "indexFilterable": true
+        },
+        {
+          "name": "time_window",
+          "dataType": ["text"]
+        },
+        {
+          "name": "summary_text",
+          "dataType": ["text"]
+        }
+      ]
+    }
+  ]
+}

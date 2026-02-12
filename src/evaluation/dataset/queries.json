@@ -1,0 +1,15 @@
+[
+    {
+        "query": "high protein low sugar snacks",
+        "constraints": {
+            "min_protein": 10,
+            "max_sugar": 5
+        }
+    },
+    {
+        "query": "low sodium dairy products",
+        "constraints": {
+            "max_sodium": 100
+        }
+    }
+]

@@ -1,0 +1,45 @@
+{
+  "dataset_version": "q1_2024_v1",
+  "validated_at_utc": "2026-02-11T17:17:50.765371",
+  "checks": {
+    "required_files_present": {
+      "passed": true,
+      "missing_files": []
+    },
+    "primary_keys_unique": {
+      "customers_unique": true,
+      "products_unique": true,
+      "transactions_unique": true
+    },
+    "product_schema_valid": {
+      "passed": true,
+      "missing": [],
+      "extra": []
+    },
+    "foreign_key_integrity": {
+      "passed": true,
+      "violations": {
+        "invalid_product_ids": [],
+        "invalid_transaction_ids": []
+      }
+    },
+    "nutrition_sanity": {
+      "passed": true,
+      "errors": []
+    },
+    "dataset_freeze": {
+      "frozen": false,
+      "seed_present": true
+    }
+  },
+  "row_counts": {
+    "customers.csv": 400,
+    "categories.csv": 6,
+    "brands.csv": 15,
+    "products.csv": 180,
+    "nutrition.csv": 180,
+    "transactions.csv": 15524,
+    "transaction_items.csv": 77505
+  },
+  "status": "TRUE"
+}

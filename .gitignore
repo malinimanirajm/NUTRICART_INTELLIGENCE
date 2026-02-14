@@ -1,7 +1,8 @@
-env/
+.env
 __pycache__/
 *.pyc
 g
 
 data/raw/*
 !data/metadata/
+.env

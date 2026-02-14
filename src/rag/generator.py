@@ -53,5 +53,6 @@ app = workflow.compile()
 
 # Function to run the graph
 def run_langgraph_generator(question, context):
-    final_state = app.invoke({"question": question, "context": context})
+    final_state = app_graph.invoke({"question": question, "context": context}) # <-- New
     return final_state["answer"]
+    

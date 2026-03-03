@@ -15,4 +15,4 @@ It simulates grocery-app transaction data to enable nutrition and diet analysis 
 
 ---
 
-## Files
+## Files and Logs 

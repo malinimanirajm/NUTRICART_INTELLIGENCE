@@ -14,11 +14,17 @@ class AgentState(TypedDict):
 
 # 2. Define the Node function (LLM Generation)
 def generate_node(state: AgentState):
+    # We improved the prompt here to stop the "21g < 5g" hallucination
     prompt = f"""
-    You are a nutrition intelligence assistant.
-    Use the context below to answer the question accurately.
-    If the answer is not in the context, say you don't know.
-
+    You are a strict Nutrition Intelligence Assistant.
+    
+    TASK:
+    Analyze the provided product context and answer the user's question.
+    
+    CRITICAL RULE:
+    You must verify the numbers. If a user asks for 'less than 5g sugar', 
+    do NOT recommend a product with more than 5g sugar.
+    
     Context:
     {state['context']}
 
@@ -32,27 +38,19 @@ def generate_node(state: AgentState):
         {'role': 'user', 'content': prompt},
     ])
     
-    # Explicitly close the Ollama client socket to prevent ResourceWarning
-    if hasattr(ollama._client, '_client'):
-        ollama._client._client.close()
-        
     return {"answer": response['message']['content']}
 
 # 3. Build the Graph
 workflow = StateGraph(AgentState)
-
-# Add nodes
 workflow.add_node("generator", generate_node)
-
-# Set the entrypoint and exit point
 workflow.set_entry_point("generator")
 workflow.add_edge("generator", END)
 
-# Compile the graph
-app = workflow.compile()
+# 4. Compile the graph (Named app_graph to match your API call)
+app_graph = workflow.compile()
 
-# Function to run the graph
+# 5. Function to run the graph
 def run_langgraph_generator(question, context):
-    final_state = app_graph.invoke({"question": question, "context": context}) # <-- New
+    # Ensure this uses app_graph.invoke
+    final_state = app_graph.invoke({"question": question, "context": context})
     return final_state["answer"]
-    

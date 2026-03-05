@@ -2,7 +2,7 @@ import csv
 import time
 import weaviate
 import weaviate.classes.config as wvc
-import config
+import src.rag.config as config
 
 def ingest_data():
     print("Connecting to Weaviate for ingestion...")

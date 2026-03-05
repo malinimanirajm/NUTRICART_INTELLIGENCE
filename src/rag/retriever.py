@@ -1,5 +1,5 @@
 import weaviate
-import config
+import src.rag.config as config
 
 def search_products(query, limit=10):
     client = weaviate.connect_to_local(host="127.0.0.1", port=8080)

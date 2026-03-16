@@ -1,6 +1,6 @@
 import weaviate
 from weaviate.classes.query import Filter
-import src.rag.config as config
+import config as config
 
 def search_products(query, max_sugar=None, limit=10):
     client = weaviate.connect_to_local(host="127.0.0.1", port=8080)

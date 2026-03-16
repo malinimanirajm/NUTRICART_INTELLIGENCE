@@ -12,7 +12,7 @@ load_dotenv()
 
 # 2. Now the initialization will find the key
 llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
+    model="gemini-2.0-flash",
     google_api_key=os.getenv("GOOGLE_API_KEY") # Explicitly pass it to be safe
 )
 
@@ -24,7 +24,7 @@ class NutritionFilters(BaseModel):
     max_sodium: Optional[float] = Field(None, description="Maximum sodium in GRAMS (1g = 1000mg)")
 
 # 2. Initialize LLM with Structured Output
-llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
+llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash")
 structured_llm = llm.with_structured_output(NutritionFilters)
 
 # 3. The Normalization Prompt
@@ -46,5 +46,6 @@ prompt = ChatPromptTemplate.from_messages([
 async def extract_normalized_filters(question: str) -> dict:
     chain = prompt | structured_llm
     result = await chain.ainvoke({"question": question})
-    # Filter out None values to keep the Weaviate query clean
-    return {k: v for k, v in result.dict().items() if v is not None}
+    filters = {k: v for k, v in result.model_dump().items() if v is not None}
+    print(f"DEBUG: Extracted filters: {filters}")  # ADD THIS
+    return filters

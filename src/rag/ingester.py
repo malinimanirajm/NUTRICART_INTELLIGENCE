@@ -4,21 +4,16 @@ import csv
 import src.rag.config as config
 
 def ingest_data():
-    print("Connecting to Weaviate for ingestion...")
     client = weaviate.connect_to_local(host="127.0.0.1", port=8080)
     
     try:
-        # 1. Clear old data
         if client.collections.exists(config.COLLECTION_NAME):
             client.collections.delete(config.COLLECTION_NAME)
-            print("Deleted old Product collection")
         
-        # --- Create collection with the correct v4 vector_config structure ---
+        # FIX: Use vector_config (v4 standard)
         client.collections.create(
-            name=config.COLLECTION_NAME,
-            # FIX: We use Configure.Vectorizer.text2vec_transformers() 
-            # as the value for the vectorizer_config parameter
-            vectorizer_config=wvc.Configure.Vectorizer.text2vec_transformers(),
+            name="Product",
+            vector_config=wvc.Configure.Vectors.text2vec_transformers(), 
             properties=[
                 wvc.Property(name="product_name", data_type=wvc.DataType.TEXT),
                 wvc.Property(name="product_id", data_type=wvc.DataType.TEXT),
@@ -26,57 +21,57 @@ def ingest_data():
                 wvc.Property(name="added_sugar", data_type=wvc.DataType.NUMBER),
                 wvc.Property(name="protein", data_type=wvc.DataType.NUMBER),
                 wvc.Property(name="calories", data_type=wvc.DataType.NUMBER),
-                wvc.Property(name="fat", data_type=wvc.DataType.NUMBER),
-                wvc.Property(name="fiber", data_type=wvc.DataType.NUMBER),
             ]
         )
-        print("✅ Collection created")
-        
+
         collection = client.collections.get(config.COLLECTION_NAME)
 
-        # 3. Step One: Build the nutrition map first
+        # Build map and read products...
+        # [Keep your nutrition_map logic here]
+
+        # 1. Build the nutrition map first (Lookup Table)
         nutrition_map = {}
         with open(config.NUTRITION_FILE, "r") as nf:
             reader = csv.DictReader(nf)
             for row in reader:
+                # We store the whole row using product_id as the key
                 nutrition_map[row["product_id"]] = row
 
-        # 3. Ingest and link
-        print("Ingesting data...")
         with open(config.PRODUCTS_FILE, "r") as pf:
             reader = csv.DictReader(pf)
             for row in reader:
                 nutri = nutrition_map.get(row["product_id"], {})
                 
-                # Helper to safely convert to float
                 def to_float(val):
-                    try: return float(val)
+                    try: return float(val)  
                     except: return 0.0
-
-                p_val = to_float(nutri.get('protein_g'))
+                
                 s_val = to_float(nutri.get('added_sugar_g'))
+                p_val = to_float(nutri.get('protein_g'))
                 c_val = to_float(nutri.get('calories_100g'))
-                f_val = to_float(nutri.get('fat_g'))
-                fb_val = to_float(nutri.get('fiber_g'))
 
-                # Create the text blob for RAG semantic search
+                # FIX: text_blob must be a clean STRING (no commas at line ends)
                 text_blob = (
                     f"Product: {row['product_name']}. "
-                    f"Calories: {c_val}, Protein: {p_val}g, "
-                    f"Sugar: {s_val}g, Fiber: {fb_val}g."
+                    f"Calories: {c_val}. "
+                    f"Protein: {p_val}g, Sugar: {s_val}g."
                 )
                 
                 collection.data.insert(properties={
-                    "product_name": row["product_name"],
-                    "product_id": row["product_id"],
+                    "product_name": str(row["product_name"]),
+                    "product_id": str(row["product_id"]),
                     "text": text_blob,
-                    "added_sugar": s_val,
+                    "added_sugar": s_val, # Now stored as a number
                     "protein": p_val,
-                    "calories": c_val,
-                    "fat": f_val,
-                    "fiber": fb_val
+                    "calories": c_val
                 })
         
-        print("✅ Data ingested successfully.")
+        print("✅ Re-ingested: Data is now searchable by numeric filters.")
     finally:
         client.close()
+
+if __name__ == "__main__":
+    print("Starting data ingestion...")
+    ingest_data()
+    print("Done!")
+    print("I am here")

@@ -1,18 +1,19 @@
-# Web Framework & Server
-fastapi==0.109.2
-uvicorn[standard]==0.27.1
+# Web Framework
+fastapi
+uvicorn
+pydantic
+python-dotenv
 
-# AI & Orchestration
-langgraph==0.0.26
-langchain-google-genai==1.0.1
-langchain-core==0.1.25
-langsmith==0.1.5
+# LangChain & AI Core
+langchain
+langchain-core
+langchain-google-genai
+langgraph
 
-# Database
-weaviate-client==4.4.4
+# Vector Database & Data
+weaviate-client>=4.5.4
+pandas
+numpy
 
-# Utilities
-python-dotenv==1.0.1
-pydantic==2.6.1
-typing-extensions==4.9.0
-pandas==2.2.0
+# Observability & Ops
+langsmith

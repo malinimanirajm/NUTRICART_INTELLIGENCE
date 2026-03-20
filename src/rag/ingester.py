@@ -43,9 +43,9 @@ def ingest_data():
                 nutri = nutrition_map.get(row["product_id"], {})
                 
                 def to_float(val):
-                    try: return float(val)
+                    try: return float(val)  
                     except: return 0.0
-
+                
                 s_val = to_float(nutri.get('added_sugar_g'))
                 p_val = to_float(nutri.get('protein_g'))
                 c_val = to_float(nutri.get('calories_100g'))

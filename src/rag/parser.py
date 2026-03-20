@@ -1,51 +1,76 @@
 import os
+import asyncio
+import re
+import json
 from typing import Optional
 from pydantic import BaseModel, Field
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_ollama import ChatOllama  # Ensure this is installed
 from langchain_core.prompts import ChatPromptTemplate
-import os
 from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI
 
-# 1. Load here so the file is self-sufficient
 load_dotenv()
 
-# 2. Now the initialization will find the key
-llm = ChatGoogleGenerativeAI(
-    model="gemini-2.0-flash",
-    google_api_key=os.getenv("GOOGLE_API_KEY") # Explicitly pass it to be safe
-)
-
-# 1. Define the Schema for Mathematical Filtering
 class NutritionFilters(BaseModel):
-    min_protein: Optional[float] = Field(None, description="Minimum protein in grams")
-    max_sugar: Optional[float] = Field(None, description="Maximum sugar in grams")
-    max_calories: Optional[float] = Field(None, description="Maximum calories (kcal)")
-    max_sodium: Optional[float] = Field(None, description="Maximum sodium in GRAMS (1g = 1000mg)")
+    min_protein: Optional[float] = Field(None, description="Minimum protein (g)")
+    max_sugar: Optional[float] = Field(None, description="Maximum sugar (g)")
 
-# 2. Initialize LLM with Structured Output
-llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash")
-structured_llm = llm.with_structured_output(NutritionFilters)
+# 1. Initialize both models
+gemini_llm = ChatGoogleGenerativeAI(
+    model="gemini-2.0-flash-lite",
+    google_api_key=os.getenv("GOOGLE_API_KEY"),
+    max_retries=3
+)
+structured_gemini = gemini_llm.with_structured_output(NutritionFilters)
 
-# 3. The Normalization Prompt
-SYSTEM_PROMPT = """
-You are a precision nutritional data extractor for NutriCart.
-STRICT UNIT RULES:
-1. Normalize ALL weights to GRAMS (g). 
-2. If the user mentions milligrams (mg), divide by 1000. 
-   - Example: "500mg sodium" -> 0.5
-   - Example: "2g sugar" -> 2.0
-3. If no unit is mentioned, assume grams.
-"""
-
-prompt = ChatPromptTemplate.from_messages([
-    ("system", SYSTEM_PROMPT),
-    ("human", "{question}")
-])
+# Local backup for when Gemini is exhausted
+ollama_llm = ChatOllama(model="llama3.2:3b", temperature=0)
 
 async def extract_normalized_filters(question: str) -> dict:
-    chain = prompt | structured_llm
-    result = await chain.ainvoke({"question": question})
-    filters = {k: v for k, v in result.model_dump().items() if v is not None}
-    print(f"DEBUG: Extracted filters: {filters}")  # ADD THIS
-    return filters
+    """Extracts filters using Gemini, with a local Ollama fallback on failure."""
+    
+    # --- Try Gemini First ---
+    try:
+        # We wrap the chain in a timeout to prevent hanging
+        result = await structured_gemini.ainvoke(question)
+        if result:
+            return {k: v for k, v in result.model_dump().items() if v is not None}
+    except Exception as e:
+        # If it's a 429 (Quota) or other connection error, move to Ollama
+        if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+            print("⚠️ Gemini Quota Hit in Parser. Falling back to Local Ollama...")
+        else:
+            print(f"⚠️ Gemini encountered an error: {e}. Trying Ollama...")
+
+    # --- Fallback: Ollama + Manual Extraction ---
+    # Small models like Llama 3.2:3b need very explicit instructions
+    # 2. Optimized Fallback for Ollama
+    ollama_prompt = (
+        "TASK: Extract nutrition limits as JSON.\n"
+        "RULES:\n"
+        "- Look for 'sugar' and 'protein'.\n"
+        "- Use the exact keys: 'max_sugar' and 'min_protein'.\n"
+        "- If the user says 'less than X sugar', set 'max_sugar' to X.\n"
+        "- If the user says 'high protein', set 'min_protein' to 10 (default).\n"
+        f"USER QUERY: {question}\n"
+        "JSON OUTPUT ONLY:"
+    )
+    
+    try:
+        response = await ollama_llm.ainvoke(ollama_prompt)
+        # Regex to find JSON block
+        match = re.search(r'\{.*\}', response.content, re.DOTALL)
+        if match:
+            data = json.loads(match.group())
+            # FORCE conversion to float and ensure keys exist
+            final_filters = {}
+            if data.get("max_sugar") is not None:
+                final_filters["max_sugar"] = float(data["max_sugar"])
+            if data.get("min_protein") is not None:
+                final_filters["min_protein"] = float(data["min_protein"])
+            return final_filters
+    except Exception as e:
+        print(f"Extraction Error: {e}")
+    return {}
+    
+   

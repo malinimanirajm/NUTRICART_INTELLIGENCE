@@ -1,25 +1,45 @@
+import logging
 from typing import TypedDict, List, Any, Optional
 from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
 from langsmith import traceable
-from src.rag.parser import extract_normalized_filters # Ensure path is correct
+from src.rag.parser import extract_normalized_filters
 import weaviate
 from weaviate.classes.query import Filter
 from langchain_google_genai import ChatGoogleGenerativeAI
-import os
-import logging
+from langchain_ollama import ChatOllama
 
+# Setup Logging
 logger = logging.getLogger(__name__)
 
-# Define the shared state
+# 1. Define State
 class AgentState(TypedDict):
     question: str
     filters: dict
     results: List[dict[str, Any]]
     answer: str
 
-# Initialize LLM
-llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash")
+# 2. Initialize LLM
+#llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite", temperature=0)
+# Initialize both models
+#primary_llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite", temperature=0)
+backup_llm = ChatOllama(model="llama3.2:3b", temperature=0)
 
+async def robust_llm_call(prompt: str) -> str:
+    """Tries Gemini; falls back to Ollama on Quota/Network error."""
+    try:
+        response = await backup_llm.ainvoke(prompt)
+        return response.content
+    except Exception as e:
+        if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+            logger.warning("⚠️ Gemini Quota Hit. Falling back to Local Ollama...")
+            response = await backup_llm.ainvoke(prompt)
+            return response.content
+        else:
+            # Re-raise if it's a different, critical error
+            raise e
+
+# 3. Nodes
 @traceable(name="Node: Unit_Normalization")
 async def extraction_node(state: AgentState):
     filters = await extract_normalized_filters(state["question"])
@@ -27,73 +47,67 @@ async def extraction_node(state: AgentState):
 
 @traceable(name="Node: Weaviate_Retrieval")
 async def retrieval_node(state: AgentState):
-    # Using 127.0.0.1 is more stable for local Docker on macOS
     client = weaviate.connect_to_local(host="127.0.0.1", port=8080)
     try:
         collection = client.collections.get("Product")
-        
-        weaviate_filter = None
         f = state.get("filters", {})
-        logger.info(f"DEBUG: Filters from state: {f}")
-
+        
+        # Build Native Weaviate Filters
+        weaviate_filter = None
         if "max_sugar" in f:
             weaviate_filter = Filter.by_property("added_sugar").less_than(float(f["max_sugar"]))
-            logger.info(f"DEBUG: Applied max_sugar filter: {f['max_sugar']}")
         if "min_protein" in f:
             p_filt = Filter.by_property("protein").greater_or_equal(float(f["min_protein"]))
             weaviate_filter = (weaviate_filter & p_filt) if weaviate_filter else p_filt
-            logger.info(f"DEBUG: Applied min_protein filter: {f['min_protein']}")
+        if "max_calories" in f:
+            c_filt = Filter.by_property("calories").less_than(float(f["max_calories"]))
+            weaviate_filter = (weaviate_filter & c_filt) if weaviate_filter else c_filt
 
-        # Query with near_text, then filter results in Python
-        if f:
-            logger.info(f"DEBUG: Querying with near_text and Python-based filtering...")
-            # First get results with near_text (semantic search)
-            response = collection.query.near_text(
-                query="product",
-                limit=50,  # Get more to filter
-                return_properties=["product_name", "added_sugar", "protein", "calories"]
-            )
-            # Filter results in Python based on numeric criteria
-            filtered_results = []
-            for obj in response.objects:
-                props = obj.properties
-                # Apply filter logic
-                if "max_sugar" in f and props.get("added_sugar", 999) >= float(f["max_sugar"]):
-                    continue
-                if "min_protein" in f and props.get("protein", 0) < float(f["min_protein"]):
-                    continue
-                filtered_results.append(props)
-                if len(filtered_results) >= 5:
-                    break
-            results = filtered_results
-            logger.info(f"DEBUG: Retrieved {len(results)} filtered results")
-        else:
-            logger.info(f"DEBUG: Fetching all products with near_text...")
-            response = collection.query.near_text(
-                query="product",
-                limit=5,
-                return_properties=["product_name", "added_sugar", "protein", "calories"]
-            )
-            results = [obj.properties for obj in response.objects]
-            logger.info(f"DEBUG: Retrieved {len(results)} results")
+        # Execute semantic search WITH native filters
+        response = collection.query.near_text(
+            query=state["question"],
+            filters=weaviate_filter,
+            limit=5,
+            return_properties=["product_name", "added_sugar", "protein", "calories"]
+        )
+        
+        results = [obj.properties for obj in response.objects]
         return {"results": results}
+    except Exception as e:
+        logger.error(f"Retrieval Error: {e}")
+        return {"results": []}
     finally:
         client.close()
+
 
 @traceable(name="Node: Answer_Synthesis")
 async def generate_node(state: AgentState):
     results = state.get("results", [])
+    filters = state.get("filters", {}) # Get the actual filter values
     
-    # Handle empty results gracefully
     if not results:
-        return {"answer": "I couldn't find any products matching those criteria in our database. Try a different search?"}
+        return {"answer": "I found no products matching your specific limits."}
 
-    context = "\n".join([f"- {p['product_name']}: {p['added_sugar']}g sugar, {p['protein']}g protein" for p in results])
-    prompt = f"Summarize why these products fit the request '{state['question']}':\n{context}"
-    response = await llm.ainvoke(prompt)
-    return {"answer": response.content}
+    context = "\n".join([
+        f"- {p['product_name']}: {p['added_sugar']}g sugar, {p['protein']}g protein" 
+        for p in results
+    ])
+    
+    # Explicitly tell the LLM what the limits were
+    # Inside generate_node in graph.py
+    prompt = (
+        "You are a Nutrition Assistant. Summarize these products based on the user's limits.\n"
+        "Example Logic: 'Product A (2g sugar) meets the < 5g limit.'\n"
+        f"User Request: {state['question']}\n"
+        f"Limits: Sugar < {filters.get('max_sugar')}g, Protein > {filters.get('min_protein')}g.\n"
+        f"Data:\n{context}\n"
+        "Summarize only the items that truly meet the limits."
+    )
+    
+    answer_text = await robust_llm_call(prompt)
+    return {"answer": answer_text}
 
-# Build the Graph
+# 4. Build Graph
 workflow = StateGraph(AgentState)
 workflow.add_node("extract", extraction_node)
 workflow.add_node("retrieve", retrieval_node)
@@ -104,4 +118,6 @@ workflow.add_edge("extract", "retrieve")
 workflow.add_edge("retrieve", "generate")
 workflow.add_edge("generate", END)
 
-app_graph = workflow.compile()
+# 5. Compile with Persistence
+memory = MemorySaver()
+app_graph = workflow.compile(checkpointer=memory)

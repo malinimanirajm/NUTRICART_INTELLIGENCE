@@ -1,9 +1,9 @@
+import os
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from src.rag.graph import app_graph  # Import the compiled LangGraph
-from src.rag.ingester1 import ingest_data
-import os
-from dotenv import load_dotenv  # Correct import name
+from dotenv import load_dotenv
+from src.rag.graph import app_graph
+from src.rag.ingester import ingest_data
 
 load_dotenv()
 
@@ -11,6 +11,7 @@ app = FastAPI(title="NutriCart Intelligence API v2")
 
 class QueryRequest(BaseModel):
     question: str
+    thread_id: str = "default_session" # Added for memory support
 
 @app.get("/")
 async def root():
@@ -19,31 +20,31 @@ async def root():
 @app.post("/ask")
 async def ask_nutricart(request: QueryRequest):
     try:
-        # We invoke the entire Graph. 
-        # This triggers: Extract (mg->g) -> Retrieve (Weaviate) -> Generate
+        # Initial state for the Graph
         initial_state = {"question": request.question}
         
-        # Using ainvoke for asynchronous support
-        final_state = await app_graph.ainvoke(initial_state)
+        # Config for LangGraph Persistence (Memory)
+        # Using the thread_id allows the agent to remember context for that specific user
+        config = {"configurable": {"thread_id": request.thread_id}}
+        
+        # Execute the Graph
+        final_state = await app_graph.ainvoke(initial_state, config=config)
         
         return {
-            "question": final_state["question"],
-            "filters_applied": final_state.get("filters"), # Shows the mg->g conversion
-            "elaborated_answer": final_state.get("answer"), # THE NEW LLM DESCRIPTION
-            "product_matches": final_state.get("results") # Your final RAG answer
+            "session_id": request.thread_id,
+            "question": final_state.get("question"),
+            "filters_applied": final_state.get("filters"),
+            "elaborated_answer": final_state.get("answer"),
+            "product_matches": final_state.get("results")
         }
     except Exception as e:
-        # Detailed error for debugging your new Graph nodes
-        print(f"Graph Error: {e}")
-        raise HTTPException(status_code=500, detail="Internal Graph Execution Error")
+        print(f"Graph Execution Error: {e}")
+        raise HTTPException(status_code=500, detail="Internal AI Logic Error")
 
-# Keep your ingestion endpoint as is
 @app.post("/ingest")
 async def trigger_ingestion():
     try:
         ingest_data()
-        return {"message": "✅ Data ingestion successful"}
+        return {"message": "✅ Data ingestion and indexing successful"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
-

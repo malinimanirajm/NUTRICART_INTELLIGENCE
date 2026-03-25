@@ -18,6 +18,8 @@ class AgentState(TypedDict):
     filters: dict
     results: List[dict[str, Any]]
     answer: str
+    aggregates: dict[str, Any]
+    user_id: str
 
 # 2. Initialize LLM
 #llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite", temperature=0)
@@ -37,7 +39,7 @@ async def robust_llm_call(prompt: str) -> str:
             return response.content
         else:
             # Re-raise if it's a different, critical error
-            raise e
+            raise 
 
 # 3. Nodes
 @traceable(name="Node: Unit_Normalization")
@@ -79,8 +81,26 @@ async def retrieval_node(state: AgentState):
     finally:
         client.close()
 
+@traceable(name="Node: Nutritional_Aggregation")
+async def aggregation_node(state: AgentState):
+    results = state.get("results", [])
+    summary = {}
 
-@traceable(name="Node: Answer_Synthesis")
+    for item in results:
+        # Assuming your Weaviate 'Product' class has a 'category' property
+        cat = item.get("category", "Uncategorized")
+        
+        if cat not in summary:
+            summary[cat] = {"calories": 0, "protein": 0, "sugar": 0, "count": 0}
+        
+        summary[cat]["calories"] += item.get("calories", 0)
+        summary[cat]["protein"] += item.get("protein", 0)
+        summary[cat]["sugar"] += item.get("added_sugar", 0)
+        summary[cat]["count"] += 1
+
+    return {"aggregates": summary}
+
+"""@traceable(name="Node: Answer_Synthesis")
 async def generate_node(state: AgentState):
     results = state.get("results", [])
     filters = state.get("filters", {}) # Get the actual filter values
@@ -105,18 +125,47 @@ async def generate_node(state: AgentState):
     )
     
     answer_text = await robust_llm_call(prompt)
+    return {"answer": answer_text}"""
+
+@traceable(name="Node: Answer_Synthesis")
+async def generate_node(state: AgentState):
+    agg = state.get("aggregates", {})
+    user = state.get("user_id", "Unknown Consumer")
+    
+    if not agg:
+        return {"answer": f"No consumption data found for Consumer {user}."}
+
+    # Build a text-based table or list for the LLM to summarize
+    breakdown = ""
+    for cat, stats in agg.items():
+        breakdown += (f"- {cat}: {stats['calories']} kcal, {stats['protein']}g Protein, "
+                     f"{stats['sugar']}g Sugar ({stats['count']} items)\n")
+
+    prompt = (
+        f"You are a Nutrition Intelligence Dashboard. Summarize the consumption for {user}.\n"
+        "Provide a high-level insight (e.g., 'Your highest protein source is Dairy').\n"
+        f"Category Breakdown:\n{breakdown}\n"
+        "Keep the tone professional and data-driven."
+    )
+    
+    answer_text = await robust_llm_call(prompt)
     return {"answer": answer_text}
 
 # 4. Build Graph
 workflow = StateGraph(AgentState)
+
+# Define all nodes
 workflow.add_node("extract", extraction_node)
 workflow.add_node("retrieve", retrieval_node)
+workflow.add_node("aggregate", aggregation_node)  # Your new node
 workflow.add_node("generate", generate_node)
 
+# Define the linear flow
 workflow.add_edge(START, "extract")
 workflow.add_edge("extract", "retrieve")
-workflow.add_edge("retrieve", "generate")
-workflow.add_edge("generate", END)
+workflow.add_edge("retrieve", "aggregate")   # Flow moves TO aggregation
+workflow.add_edge("aggregate", "generate")   # Flow moves TO synthesis
+workflow.add_edge("generate", END)           # End the process
 
 # 5. Compile with Persistence
 memory = MemorySaver()

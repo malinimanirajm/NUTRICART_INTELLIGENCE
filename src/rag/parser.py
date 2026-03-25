@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class NutritionFilters(BaseModel):
+    user_id: Optional[str] = Field(None, description="The specific ID of the consumer/user")
     min_protein: Optional[float] = Field(None, description="Minimum protein (g)")
     max_sugar: Optional[float] = Field(None, description="Maximum sugar (g)")
 
@@ -64,6 +65,8 @@ async def extract_normalized_filters(question: str) -> dict:
             data = json.loads(match.group())
             # FORCE conversion to float and ensure keys exist
             final_filters = {}
+            if data.get("user_id") is not None:
+                final_filters["user_id"] = str(data["user_id"])
             if data.get("max_sugar") is not None:
                 final_filters["max_sugar"] = float(data["max_sugar"])
             if data.get("min_protein") is not None:

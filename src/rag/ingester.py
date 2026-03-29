@@ -42,6 +42,7 @@ def ingest_data():
                 wvc.Property(name="added_sugar", data_type=wvc.DataType.NUMBER),
                 wvc.Property(name="protein", data_type=wvc.DataType.NUMBER),
                 wvc.Property(name="calories", data_type=wvc.DataType.NUMBER),
+                wvc.Property(name="category", data_type=wvc.DataType.TEXT), 
             ]
         )
 
@@ -79,7 +80,8 @@ def ingest_data():
                 # 3. SIMULATE TIME-SERIES DATA
                 # Randomly assign a consumption date within the last 365 days
                 days_ago = random.randint(0, 365)
-                consumption_date = datetime.now() - timedelta(days=days_ago)
+                start_2024 = datetime(2024, 1, 1, tzinfo=timezone.utc)
+                consumption_date = start_2024 + timedelta(days=random.randint(0, 365))
                 
                 cat = get_category_from_name(row['product_name'])
 

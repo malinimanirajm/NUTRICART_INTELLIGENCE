@@ -1,26 +1,36 @@
 import weaviate
 from weaviate.classes.query import Filter
-import config as config
+from src.rag import config
 
-def search_products(query, max_sugar=None, limit=10):
-    client = weaviate.connect_to_local(host="127.0.0.1", port=8080)
+def search_products(query, customer_id=None, max_sugar=None, min_protein=None, max_calories=None, category=None, limit=10):
+    client = weaviate.connect_to_local(host=config.WEAVIATE_HOST, port=config.WEAVIATE_PORT)
     collection = client.collections.get(config.COLLECTION_NAME)
-    
-    # Apply a hard numerical filter
-    results = collection.query.near_text(
+    filters = []
+
+    if max_sugar is not None:
+        filters.append(Filter.by_property("added_sugar").less_than(max_sugar))
+    if min_protein is not None:
+        filters.append(Filter.by_property("protein").greater_or_equal(min_protein))
+    if max_calories is not None:
+        filters.append(Filter.by_property("calories").less_than(max_calories))
+    if category:
+        filters.append(Filter.by_property("category").equal(category))
+    if customer_id:
+        filters.append(Filter.by_property("customer_id").equal(customer_id))
+
+    filter_obj = Filter.all_of(filters) if filters else None
+
+    response = collection.query.hybrid(
         query=query,
-        filters=Filter.by_property("added_sugar").less_than(5.0), # The DB does the math!
+        filters=filter_obj,
+        alpha=0.5,
         limit=limit
     )
-    
-    context_list = []
-    for obj in results.objects:
-        # It's helpful to include the actual sugar value in the context 
-        # so the LLM can see the "proof"
-        props = obj.properties
-        text_data = props.get('text', '')
-        sugar_val = props.get('added_sugar', 'N/A')
-        context_list.append(f"{text_data} (Sugar: {sugar_val}g)")
-    
+
+    context = []
+    for obj in response.objects:
+        p = obj.properties
+        context.append(f"{p['text']} (Protein: {p['protein']}g, Sugar: {p['added_sugar']}g, Calories: {p['calories']})")
+
     client.close()
-    return "\n\n".join(context_list)
+    return "\n\n".join(context)

@@ -9,19 +9,33 @@ from src.rag import config
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------
+# NEW: Category Mapping Dictionary
+# ---------------------------------------------------------
+# This maps brand keywords and product types to clean categories
+CATEGORY_MAPPING = {
+    "snack": ["crunchy", "bite", "snack", "nest", "homebest", "treat"],
+    "dairy": ["dairy", "milk", "yogurt", "cheese", "urban"],
+    "pantry": ["staples", "valuemart", "pureharvest", "grain", "flour"],
+    "bakery": ["bake", "bread", "pastry", "cake"],
+    "beverages": ["drink", "sip", "water", "juice", "coolsip"],
+    "produce": ["farm", "leaf", "fruit", "veg", "greenleaf"]
+}
+
 def get_category_from_name(name: str) -> str:
-    name = name.lower()
-    if "dairy" in name: return "dairy"
-    if "staples" in name: return "pantry"
-    if "bake" in name: return "bakery"
-    if "drink" in name or "sip" in name: return "beverages"
-    if "farm" in name: return "produce"
+    name_lower = name.lower()
+    for category, keywords in CATEGORY_MAPPING.items():
+        if any(kw in name_lower for kw in keywords):
+            return category
     return "general"
 
+# ---------------------------------------------------------
+# Corrected safe_float (no upper bound restriction)
+# ---------------------------------------------------------
 def safe_float(val, default=0.0):
     try:
         f = float(val)
-        if f < 0 or f > 100:  # guard invalid data
+        if f < 0: 
             return default
         return f
     except:
@@ -31,10 +45,10 @@ def ingest_data():
     client = weaviate.connect_to_local(host=config.WEAVIATE_HOST, port=config.WEAVIATE_PORT)
     try:
         if client.collections.exists(config.COLLECTION_NAME):
-            logger.info("Deleting existing collection...")
+            logger.info("Deleting existing collection to refresh data...")
             client.collections.delete(config.COLLECTION_NAME)
 
-        logger.info("Creating collection...")
+        logger.info("Creating collection with updated schema...")
         client.collections.create(
             name=config.COLLECTION_NAME,
             vector_config=wvc.Configure.Vectors.text2vec_transformers(),
@@ -53,6 +67,7 @@ def ingest_data():
 
         collection = client.collections.get(config.COLLECTION_NAME)
 
+        # Load Nutrition Map
         nutrition_map = {}
         with open(config.NUTRITION_FILE, "r") as nf:
             reader = csv.DictReader(nf)
@@ -74,19 +89,29 @@ def ingest_data():
                     continue
 
                 nutri = nutrition_map.get(product_id, {})
+                
+                # Using the fixed safe_float
                 sugar = safe_float(nutri.get("added_sugar_g"))
                 protein = safe_float(nutri.get("protein_g"))
                 calories = safe_float(nutri.get("calories_100g"))
 
+                # Logic for dummy customer assignments
                 user_num = (i // 5) + 1
                 customer_id = f"C{user_num:03d}"
 
+                # Dummy date logic
                 start = datetime(2024, 1, 1, tzinfo=timezone.utc)
                 consumption_date = start + timedelta(days=random.randint(0, 365))
 
+                # Using the NEW mapping logic
                 category = get_category_from_name(product_name)
 
-                text_blob = f"{product_name}. Category: {category}. Protein: {protein}g. Sugar: {sugar}g. Calories: {calories} kcal. Consumed by {customer_id} on {consumption_date.date()}."
+                # Build descriptive blob for vector search
+                text_blob = (
+                    f"{product_name}. Category: {category}. "
+                    f"Protein: {protein}g. Sugar: {sugar}g. Calories: {calories} kcal. "
+                    f"Consumed by {customer_id} on {consumption_date.date()}."
+                )
 
                 obj = {
                     "product_name": product_name,
@@ -108,13 +133,12 @@ def ingest_data():
             if objects_batch:
                 collection.data.insert_many(objects_batch)
 
-        logger.info("✅ Data ingestion complete")
+        logger.info("✅ Data ingestion complete with new Category Mapping and Calorie Fixes")
 
     except Exception as e:
         logger.error(f"Ingestion failed: {e}")
     finally:
         client.close()
-
 
 if __name__ == "__main__":
     ingest_data()

@@ -32,6 +32,7 @@ class AgentState(TypedDict):
     answer: str
     customer_id: str
     mode: str
+    user_feedback: dict
 
 # -----------------------------
 # LLM
@@ -275,6 +276,24 @@ async def coaching_node(state: AgentState):
             )
             # Use extend to add to existing recs if both triggers hit
             recs.extend([obj.properties for obj in sugar_response.objects])
+        # NEW: Get the blacklist from state
+    disliked_items = state.get("user_feedback", {}).get("disliked_products", [])
+    
+    with weaviate.connect_to_local(...) as client:
+        collection = client.collections.get(config.COLLECTION_NAME)
+        
+        # Build the dynamic filter
+        base_filter = Filter.by_property("protein").greater_than(15.0)
+        
+        # If there are dislikes, add a "NOT IN" condition
+        if disliked_items:
+            base_filter = base_filter & Filter.by_property("product_name").contains_none(disliked_items)
+
+        response = collection.query.hybrid(
+            query="high protein healthy staples",
+            filters=base_filter,
+            limit=2
+        )
 
     # Deduplicate in case the same item hit both queries
     unique_recs = {r['product_name']: r for r in recs}.values()

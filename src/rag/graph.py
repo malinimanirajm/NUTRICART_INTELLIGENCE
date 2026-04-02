@@ -9,9 +9,14 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 from langsmith import traceable
 from langchain_ollama import ChatOllama
+import aiosqlite
 
+import sqlite3
 from src.rag import config
 from src.rag.parser import extract_normalized_filters
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+
+
 
 # -----------------------------
 # Logging
@@ -33,6 +38,8 @@ class AgentState(TypedDict):
     customer_id: str
     mode: str
     user_feedback: dict
+
+workflow = StateGraph(AgentState)
 
 # -----------------------------
 # LLM
@@ -240,11 +247,32 @@ async def generate_node(state: AgentState):
     res_text = "\n".join(f"- {r['product_name']}: {r['added_sugar']}g sugar, {r['protein']}g protein" for r in results[:5])
     return {"answer": f"### 🔍 Top Product Matches:\n{res_text}"}
 
+
+DB_PATH = "nutricart_checkpoints.db"
+
+# We initialize the class directly. 
+# LangGraph will handle the async connection internally when you call ainvoke.
+memory = AsyncSqliteSaver(aiosqlite.connect(DB_PATH))
+
+def get_user_blacklist(customer_id: str):
+    """Fetch disliked products from the Vault."""
+    conn = sqlite3.connect("nutricart_vault.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT product_name FROM user_feedback WHERE customer_id = ? AND feedback_type = 'dislike'", (customer_id,))
+    items = [row[0] for row in cursor.fetchall()]
+    conn.close()
+    return items
+
+
 @traceable(name="Coaching_Engine")
 async def coaching_node(state: AgentState):
     mode = state.get("mode")
     agg = state.get("aggregates", {})
     question = state.get("question", "").lower()
+    
+    # NEW: Get the blacklist from state safely
+    feedback = state.get("user_feedback") or {}
+    disliked_items = feedback.get("disliked_products", [])
     
     # Exit early if not a comparison or no data to analyze
     if mode != "comparison" or "current" not in agg:
@@ -254,51 +282,41 @@ async def coaching_node(state: AgentState):
     curr_prot = agg["current"].get("protein", 0)
     prev_prot = agg["previous"].get("protein", 0)
 
-    # Open connection once for all potential "Rescue" queries
+    # Open connection ONCE for efficiency
     with weaviate.connect_to_local(host=config.WEAVIATE_HOST, port=config.WEAVIATE_PORT) as client:
         collection = client.collections.get(config.COLLECTION_NAME)
         
+        # Build a base filter that ALWAYS excludes dislikes
+        base_filter = Filter.by_property("protein").greater_than(15.0)
+        if disliked_items:
+            base_filter = base_filter & Filter.by_property("product_name").contains_none(disliked_items)
+
         # TRIGGER 1: Protein Drop Logic
         if curr_prot < prev_prot:
             prot_response = collection.query.hybrid(
                 query="high protein healthy staples",
-                filters=Filter.by_property("protein").greater_than(15.0),
+                filters=base_filter,
                 limit=2
             )
             recs.extend([obj.properties for obj in prot_response.objects])
 
-        # TRIGGER 2: Sugar Reduction Logic ("Goal-Seeker")
-        if "sugar" in question and ("cut" in question or "reduce" in question or "goal" in question):
+        # TRIGGER 2: Sugar Reduction Logic
+        if any(w in question for w in ["cut", "reduce", "goal", "sugar"]):
+            sugar_filter = Filter.by_property("added_sugar").equal(0.0)
+            if disliked_items:
+                sugar_filter = sugar_filter & Filter.by_property("product_name").contains_none(disliked_items)
+                
             sugar_response = collection.query.hybrid(
                 query="zero sugar high protein alternatives",
-                filters=Filter.by_property("added_sugar").equal(0.0),
+                filters=sugar_filter,
                 limit=3
             )
-            # Use extend to add to existing recs if both triggers hit
             recs.extend([obj.properties for obj in sugar_response.objects])
-        # NEW: Get the blacklist from state
-    disliked_items = state.get("user_feedback", {}).get("disliked_products", [])
-    
-    with weaviate.connect_to_local(...) as client:
-        collection = client.collections.get(config.COLLECTION_NAME)
-        
-        # Build the dynamic filter
-        base_filter = Filter.by_property("protein").greater_than(15.0)
-        
-        # If there are dislikes, add a "NOT IN" condition
-        if disliked_items:
-            base_filter = base_filter & Filter.by_property("product_name").contains_none(disliked_items)
 
-        response = collection.query.hybrid(
-            query="high protein healthy staples",
-            filters=base_filter,
-            limit=2
-        )
-
-    # Deduplicate in case the same item hit both queries
-    unique_recs = {r['product_name']: r for r in recs}.values()
+    # Deduplicate results by product name
+    unique_recs = list({r['product_name']: r for r in recs}.values())
     
-    return {"recommendations": list(unique_recs)}
+    return {"recommendations": unique_recs}
 # -----------------------------
 # Graph Build
 # -----------------------------
@@ -319,4 +337,5 @@ workflow.add_edge("coach", "rank")
 workflow.add_edge("rank", "generate")
 workflow.add_edge("generate", END)
 
-app_graph = workflow.compile(checkpointer=MemorySaver())
+
+app_graph = workflow.compile(checkpointer=memory)

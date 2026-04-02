@@ -1,9 +1,13 @@
 import os
+import sqlite3
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
 from dotenv import load_dotenv
+
+# --- NEW: Import your SQL utilities ---
+from src.utils.db import init_db, save_dislike, get_dislikes
 
 # Ensure your project structure is correctly in the PYTHONPATH
 from src.rag.graph import app_graph
@@ -12,8 +16,8 @@ from src.rag.ingester import ingest_data
 load_dotenv()
 
 app = FastAPI(
-    title="NutriCart Intelligence API v2.1",
-    description="Agentic RAG with Adaptive Human-in-the-Loop Feedback."
+    title="NutriCart Intelligence API v2.2",
+    description="Agentic RAG with Persistent SQLite Feedback Memory."
 )
 
 # --- Models ---
@@ -23,28 +27,41 @@ class QueryRequest(BaseModel):
 
 class FeedbackRequest(BaseModel):
     product: str
-    action: str  # e.g., "dislike" or "like"
+    action: str  # e.g., "dislike"
     thread_id: str
 
-# --- In-Memory Feedback Store (For local dev) ---
-# In a full production app, this would be a table in SQLite or PostgreSQL
-user_feedback_store = {} 
+# --- DB Initialization on Startup ---
+@app.on_event("startup")
+async def startup_event():
+    """Ensure the SQLite file and tables are created before the API starts."""
+    try:
+        # 1. Initialize the Long-Term Vault (Preferences/Dislikes)
+        fix_empty_vault() 
+        
+        # 2. Initialize any other DBs (like Checkpoints if needed)
+        # init_db() 
+
+        print("✅ Database Vault: Initialized and Tables Ready.")
+        print("🚀 NutriCart Intelligence: API Engine Online.")
+        
+    except Exception as e:
+        print(f"❌ Critical Startup Error: {e}")
+        # In production, you might want the app to stop if the DB fails
 
 @app.get("/")
 async def root():
     return {
         "status": "online", 
-        "version": "2.1 (Adaptive)",
-        "capabilities": ["Discovery", "Analytics", "Comparison", "Coaching", "Feedback"]
+        "version": "2.2 (Persistent)",
+        "capabilities": ["Discovery", "Analytics", "Comparison", "Coaching", "Feedback", "SQLite_Vault"]
     }
 
 @app.post("/ask")
 async def ask_nutricart(request: QueryRequest):
     try:
-        # Retrieve existing dislikes for this thread to pass into the Graph
-        dislikes = user_feedback_store.get(request.thread_id, {}).get("disliked_products", [])
+        # --- UPDATE: Fetch dislikes from SQLite instead of a dictionary ---
+        dislikes = get_dislikes(request.thread_id)
         
-        # Initial state now includes the user's past feedback
         initial_state = {
             "question": request.question,
             "user_feedback": {"disliked_products": dislikes} 
@@ -71,20 +88,17 @@ async def ask_nutricart(request: QueryRequest):
         )
 
 @app.post("/feedback")
-async def save_feedback(feedback: FeedbackRequest):
-    """Updates the thread's memory with user preferences."""
-    try:
-        if feedback.thread_id not in user_feedback_store:
-            user_feedback_store[feedback.thread_id] = {"disliked_products": [], "liked_products": []}
-        
-        if feedback.action == "dislike":
-            if feedback.product not in user_feedback_store[feedback.thread_id]["disliked_products"]:
-                user_feedback_store[feedback.thread_id]["disliked_products"].append(feedback.product)
-        
-        print(f"📝 [FEEDBACK] Thread {feedback.thread_id} updated: Disliked {feedback.product}")
-        return {"status": "success", "message": f"Updated preferences for {feedback.product}"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Feedback Failed: {str(e)}")
+async def save_feedback(customer_id: str, product_name: str, feedback_type: str):
+    """Endpoint to save likes/dislikes to the Vault."""
+    conn = sqlite3.connect("nutricart_vault.db")
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO user_feedback (customer_id, product_name, feedback_type) VALUES (?, ?, ?)",
+        (customer_id, product_name, feedback_type)
+    )
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": f"Saved {feedback_type} for {product_name}"}
 
 @app.post("/ingest")
 async def trigger_ingestion():

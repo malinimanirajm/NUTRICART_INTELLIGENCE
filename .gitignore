@@ -6,3 +6,9 @@ g
 data/raw/*
 !data/metadata/
 .env
+
+
+*.db
+__pycache__/
+.env
+nuti_prod/

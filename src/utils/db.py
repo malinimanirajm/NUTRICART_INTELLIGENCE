@@ -11,6 +11,7 @@ def init_db():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS user_feedback (
             thread_id TEXT,
+            customer_id TEXT NOT NULL,
             product_name TEXT,
             action TEXT,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,

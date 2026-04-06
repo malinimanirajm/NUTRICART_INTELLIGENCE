@@ -87,6 +87,10 @@ async def retrieval_node(state: AgentState):
         f = state.get("filters", {})
         mode = state.get("mode")
         c_id = state.get("customer_id")
+        
+        # --- NEW: Get the Blacklist from the state ---
+        user_feedback = state.get("user_feedback", {})
+        blacklist = user_feedback.get("disliked_products", [])
 
         filter_clauses = []
 
@@ -108,15 +112,22 @@ async def retrieval_node(state: AgentState):
             query=state["question"],
             filters=weaviate_filter,
             alpha=0.2,
-            limit=150, # Sufficient for dual-period comparison
+            limit=150, 
             return_properties=[
                 "product_name", "added_sugar", "protein", "calories", "category", "date_consumed"
             ]
         )
 
-        results = [obj.properties for obj in response.objects]
+        # --- UPDATED: Apply the Blacklist Filter ---
+        # We only keep products that are NOT in the blacklist
+        results = [
+            obj.properties for obj in response.objects 
+            if obj.properties.get("product_name") not in blacklist
+        ]
+        
+        print(f"🔍 Retrieval: Found {len(response.objects)} raw items, kept {len(results)} after filtering dislikes.")
+        
         return {"results": results}
-
 # -----------------------------
 # Node 3: Aggregation (Multi-Scenario)
 # -----------------------------

@@ -1,1 +1,6 @@
 langgraph
+# Vector Database & Data
+weaviate-client>=4.5.4
+pandas
+numpy                       
+ragas

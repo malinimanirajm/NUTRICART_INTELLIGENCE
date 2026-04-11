@@ -1,22 +1,19 @@
 import logging
 import re
 from typing import TypedDict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import weaviate
 from weaviate.classes.query import Filter
 from langgraph.graph import StateGraph, START, END
-from langgraph.checkpoint.memory import MemorySaver
 from langsmith import traceable
 from langchain_ollama import ChatOllama
 import aiosqlite
-
 import sqlite3
+
 from src.rag import config
 from src.rag.parser import extract_normalized_filters
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-
-
 
 # -----------------------------
 # Logging
@@ -25,7 +22,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 # -----------------------------
-# State
+# State Definition
 # -----------------------------
 class AgentState(TypedDict):
     question: str
@@ -33,41 +30,49 @@ class AgentState(TypedDict):
     results: List[dict[str, Any]]
     ranked_results: List[dict[str, Any]]
     aggregates: dict[str, Any]
-    recommendations: List[dict[str, Any]]  # <--- NEW
+    recommendations: List[dict[str, Any]]
     answer: str
     customer_id: str
     mode: str
     user_feedback: dict
 
-workflow = StateGraph(AgentState)
-
 # -----------------------------
-# LLM
+# LLM Initialization
 # -----------------------------
 llm = ChatOllama(model=config.OLLAMA_MODEL, temperature=0)
 
 # -----------------------------
-# Node 1: Extraction
+# Node 1: Intent & Filter Extraction
 # -----------------------------
 @traceable(name="Intent_Extraction")
 async def extraction_node(state: AgentState):
-    question = state["question"]
+    question = state["question"].lower()
     filters = await extract_normalized_filters(question) or {}
 
+    # --- FIX: Dynamic Date Calculation for Comparison ---
+    # Ensures "this month" and "last month" work relative to today
+    today = datetime.now()
+    this_month = today.strftime("%Y-%m")
+    last_month_dt = (today.replace(day=1) - timedelta(days=1))
+    last_month = last_month_dt.strftime("%Y-%m")
+
     if not filters.get("max_sugar"):
-        sugar_match = re.search(r"less than (\d+)g", question.lower())
+        sugar_match = re.search(r"less than (\d+)g", question)
         if sugar_match:
             filters["max_sugar"] = float(sugar_match.group(1))
 
-    # Scenario Logic
-    if any(w in question.lower() for w in ["compare", "vs", "versus", "difference"]):
+    # Determine Scenario Mode
+    if any(w in question for w in ["compare", "vs", "versus", "difference"]):
         mode = "comparison"
-    elif any(w in question.lower() for w in ["how much", "summary", "total", "each"]):
+        filters["compare_current"] = filters.get("compare_current", this_month)
+        filters["compare_previous"] = filters.get("compare_previous", last_month)
+    elif any(w in question for w in ["how much", "summary", "total", "each"]):
         mode = "consumption"
     else:
         mode = "discovery"
 
-    c_id = filters.get("customer_id", "C001")
+    # Use the ID passed from the API or default to C001
+    c_id = state.get("customer_id") or filters.get("customer_id", "C001")
     digits = re.sub(r"\D", "", str(c_id))
     customer_id = f"C{int(digits):03d}"
 
@@ -78,7 +83,7 @@ async def extraction_node(state: AgentState):
     }
 
 # -----------------------------
-# Node 2: Retrieval
+# Node 2: Vector Retrieval (with Blacklist)
 # -----------------------------
 @traceable(name="Weaviate_Retrieval")
 async def retrieval_node(state: AgentState):
@@ -88,12 +93,11 @@ async def retrieval_node(state: AgentState):
         mode = state.get("mode")
         c_id = state.get("customer_id")
         
-        # --- NEW: Get the Blacklist from the state ---
+        # --- BLACKLIST LOGIC ---
         user_feedback = state.get("user_feedback", {})
         blacklist = user_feedback.get("disliked_products", [])
 
         filter_clauses = []
-
         if mode in ["consumption", "comparison"]:
             filter_clauses.append(Filter.by_property("customer_id").equal(c_id))
 
@@ -118,18 +122,16 @@ async def retrieval_node(state: AgentState):
             ]
         )
 
-        # --- UPDATED: Apply the Blacklist Filter ---
-        # We only keep products that are NOT in the blacklist
+        # Apply the "Post-Retrieval" Blacklist filter
         results = [
             obj.properties for obj in response.objects 
             if obj.properties.get("product_name") not in blacklist
         ]
         
-        print(f"🔍 Retrieval: Found {len(response.objects)} raw items, kept {len(results)} after filtering dislikes.")
-        
         return {"results": results}
+
 # -----------------------------
-# Node 3: Aggregation (Multi-Scenario)
+# Node 3: Hybrid Aggregation
 # -----------------------------
 @traceable(name="Hybrid_Aggregation")
 async def aggregation_node(state: AgentState):
@@ -141,16 +143,13 @@ async def aggregation_node(state: AgentState):
         curr_p = filters.get("compare_current")
         prev_p = filters.get("compare_previous")
         
-        logger.info(f"DEBUG: Comparing periods: '{curr_p}' vs '{prev_p}' | Total items fetched: {len(results)}")
-
-        # Format: { "current": stats, "previous": stats }
         comp_agg = {"current": {"protein": 0, "sugar": 0, "count": 0}, 
                     "previous": {"protein": 0, "sugar": 0, "count": 0}}
         
         for item in results:
             date_val = item.get("date_consumed")
             if not date_val: continue
-            dt_str = str(date_val)[:7] # YYYY-MM
+            dt_str = str(date_val)[:7] # YYYY-MM format
             
             target = None
             if dt_str == curr_p: target = "current"
@@ -163,20 +162,18 @@ async def aggregation_node(state: AgentState):
         
         return {"aggregates": comp_agg}
 
-    # Default Scenario 2 (Monthly/Weekly)
-    granularity = filters.get("granularity", "monthly")
+    # Consumption Analysis
     analysis = {}
     for item in results:
         date_val = item.get("date_consumed")
         if not date_val: continue
         dt = datetime.fromisoformat(str(date_val).replace('Z', '+00:00'))
+        t_key = dt.strftime("%Y-%m")
 
-        t_key = f"{dt.year}-W{dt.isocalendar()[1]:02d}" if granularity == "weekly" else dt.strftime("%Y-%m")
         if t_key not in analysis: analysis[t_key] = {}
-        
         cat = item.get("category", "general")
         if cat not in analysis[t_key]:
-            analysis[t_key][cat] = {"calories": 0, "protein": 0, "sugar": 0, "count": 0}
+            analysis[t_key][cat] = {"protein": 0, "sugar": 0, "count": 0}
 
         analysis[t_key][cat]["protein"] += item.get("protein", 0)
         analysis[t_key][cat]["sugar"] += item.get("added_sugar", 0)
@@ -185,7 +182,43 @@ async def aggregation_node(state: AgentState):
     return {"aggregates": analysis}
 
 # -----------------------------
-# Node 4: Re-ranker
+# Node 4: Coaching Engine (Excludes Dislikes)
+# -----------------------------
+@traceable(name="Coaching_Engine")
+async def coaching_node(state: AgentState):
+    mode = state.get("mode")
+    agg = state.get("aggregates", {})
+    feedback = state.get("user_feedback") or {}
+    disliked_items = feedback.get("disliked_products", [])
+    
+    if mode != "comparison" or "current" not in agg:
+        return {"recommendations": []}
+
+    recs = []
+    curr_prot = agg["current"].get("protein", 0)
+    prev_prot = agg["previous"].get("protein", 0)
+
+    with weaviate.connect_to_local(host=config.WEAVIATE_HOST, port=config.WEAVIATE_PORT) as client:
+        collection = client.collections.get(config.COLLECTION_NAME)
+        
+        # Always recommend high protein, but exclude disliked names
+        base_filter = Filter.by_property("protein").greater_than(15.0)
+        if disliked_items:
+            base_filter = base_filter & Filter.by_property("product_name").contains_none(disliked_items)
+
+        if curr_prot < prev_prot:
+            prot_response = collection.query.hybrid(
+                query="high protein healthy staples",
+                filters=base_filter,
+                limit=2
+            )
+            recs.extend([obj.properties for obj in prot_response.objects])
+
+    unique_recs = list({r['product_name']: r for r in recs}.values())
+    return {"recommendations": unique_recs}
+
+# -----------------------------
+# Node 5: Re-Ranking
 # -----------------------------
 @traceable(name="Re_Ranking")
 async def ranker_node(state: AgentState):
@@ -200,153 +233,70 @@ async def ranker_node(state: AgentState):
     return {"ranked_results": ranked}
 
 # -----------------------------
-# Node 5: Multi-Scenario Generation
+# Node 6: Answer Generation
 # -----------------------------
 @traceable(name="Answer_Generation")
 async def generate_node(state: AgentState):
     mode = state.get("mode")
     agg = state.get("aggregates", {})
-    c_id = state.get("customer_id")
     recs = state.get("recommendations", [])
 
     if mode == "comparison":
-        curr = agg.get("current")
-        prev = agg.get("previous")
-        
+        curr, prev = agg.get("current"), agg.get("previous")
         if not curr or not prev or (curr['count'] == 0 and prev['count'] == 0):
             return {"answer": "Insufficient data in the requested periods to perform a comparison."}
         
         p_diff = curr['protein'] - prev['protein']
-        s_diff = curr['sugar'] - prev['sugar']
-        
-        # Base Comparison Answer
         answer = (
             f"### ⚔️ Comparison: {state['filters'].get('compare_current')} vs {state['filters'].get('compare_previous')}\n"
             f"- **Protein:** {curr['protein']:.1f}g vs {prev['protein']:.1f}g ({'📈' if p_diff > 0 else '📉'} {abs(p_diff):.1f}g)\n"
-            f"- **Sugar:** {curr['sugar']:.1f}g vs {prev['sugar']:.1f}g ({'⚠️' if s_diff > 0 else '✅'} {abs(s_diff):.1f}g)\n"
-            f"- **Activity:** {curr['count']} item{'s' if curr['count'] != 1 else ''} vs {prev['count']} item{'s' if prev['count'] != 1 else ''}."
+            f"- **Activity:** {curr['count']} vs {prev['count']} items."
         )
-
-        # SCENARIO 4: Append Coaching Insight if recommendations were found
         if recs:
             rec_names = ", ".join([f"**{r['product_name']}**" for r in recs])
-            answer += (
-                f"\n\n**💡 Coach's Insight:** I noticed your protein intake dropped compared to the previous period. "
-                f"To help bridge this gap, you might consider adding {rec_names} to your next cart."
-            )
-        
+            answer += f"\n\n**💡 Coach's Insight:** To boost your protein, try {rec_names}."
         return {"answer": answer}
 
     if mode == "consumption":
-        if not agg: 
-            return {"answer": f"No records found for {c_id}."}
-        
-        lines = [f"### 📊 Consumption Report for {c_id}:"]
-        # Sorting periods to ensure chronological order (e.g., 2024-09 before 2024-12)
+        if not agg: return {"answer": "No records found."}
+        lines = ["### 📊 Consumption Report:"]
         for period, categories in sorted(agg.items()):
             lines.append(f"\n📅 **{period}**")
             for cat, s in categories.items():
-                lines.append(f"- {cat.capitalize()}: {s['count']} item{'s' if s['count'] != 1 else ''} | Prot: {s['protein']:.1f}g")
-        
+                lines.append(f"- {cat.capitalize()}: {s['count']} items | Prot: {s['protein']:.1f}g")
         return {"answer": "\n".join(lines)}
 
-    # Default Scenario 1: Discovery
     results = state.get("ranked_results", [])
-    if not results: 
-        return {"answer": "No matches found for your search criteria."}
-    
+    if not results: return {"answer": "No matches found."}
     res_text = "\n".join(f"- {r['product_name']}: {r['added_sugar']}g sugar, {r['protein']}g protein" for r in results[:5])
     return {"answer": f"### 🔍 Top Product Matches:\n{res_text}"}
 
-
+# -----------------------------
+# Graph compilation
+# -----------------------------
+# -----------------------------
+# Async App Factory (FIX)
+# -----------------------------
 DB_PATH = "nutricart_checkpoints.db"
 
-# We initialize the class directly. 
-# LangGraph will handle the async connection internally when you call ainvoke.
-memory = AsyncSqliteSaver(aiosqlite.connect(DB_PATH))
-
-def get_user_blacklist(customer_id: str):
-    """Fetch disliked products from the Vault."""
-    conn = sqlite3.connect("nutricart_vault.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT product_name FROM user_feedback WHERE customer_id = ? AND feedback_type = 'dislike'", (customer_id,))
-    items = [row[0] for row in cursor.fetchall()]
-    conn.close()
-    return items
-
-
-@traceable(name="Coaching_Engine")
-async def coaching_node(state: AgentState):
-    mode = state.get("mode")
-    agg = state.get("aggregates", {})
-    question = state.get("question", "").lower()
-    
-    # NEW: Get the blacklist from state safely
-    feedback = state.get("user_feedback") or {}
-    disliked_items = feedback.get("disliked_products", [])
-    
-    # Exit early if not a comparison or no data to analyze
-    if mode != "comparison" or "current" not in agg:
-        return {"recommendations": []}
-
-    recs = []
-    curr_prot = agg["current"].get("protein", 0)
-    prev_prot = agg["previous"].get("protein", 0)
-
-    # Open connection ONCE for efficiency
-    with weaviate.connect_to_local(host=config.WEAVIATE_HOST, port=config.WEAVIATE_PORT) as client:
-        collection = client.collections.get(config.COLLECTION_NAME)
-        
-        # Build a base filter that ALWAYS excludes dislikes
-        base_filter = Filter.by_property("protein").greater_than(15.0)
-        if disliked_items:
-            base_filter = base_filter & Filter.by_property("product_name").contains_none(disliked_items)
-
-        # TRIGGER 1: Protein Drop Logic
-        if curr_prot < prev_prot:
-            prot_response = collection.query.hybrid(
-                query="high protein healthy staples",
-                filters=base_filter,
-                limit=2
-            )
-            recs.extend([obj.properties for obj in prot_response.objects])
-
-        # TRIGGER 2: Sugar Reduction Logic
-        if any(w in question for w in ["cut", "reduce", "goal", "sugar"]):
-            sugar_filter = Filter.by_property("added_sugar").equal(0.0)
-            if disliked_items:
-                sugar_filter = sugar_filter & Filter.by_property("product_name").contains_none(disliked_items)
-                
-            sugar_response = collection.query.hybrid(
-                query="zero sugar high protein alternatives",
-                filters=sugar_filter,
-                limit=3
-            )
-            recs.extend([obj.properties for obj in sugar_response.objects])
-
-    # Deduplicate results by product name
-    unique_recs = list({r['product_name']: r for r in recs}.values())
-    
-    return {"recommendations": unique_recs}
-# -----------------------------
-# Graph Build
-# -----------------------------
 workflow = StateGraph(AgentState)
 workflow.add_node("extract", extraction_node)
 workflow.add_node("retrieve", retrieval_node)
 workflow.add_node("aggregate", aggregation_node)
+workflow.add_node("coach", coaching_node)
 workflow.add_node("rank", ranker_node)
 workflow.add_node("generate", generate_node)
-workflow.add_node("coach", coaching_node)
 
-# 2. Update the edges (Aggregate -> Coach -> Rank)
 workflow.add_edge(START, "extract")
 workflow.add_edge("extract", "retrieve")
 workflow.add_edge("retrieve", "aggregate")
-workflow.add_edge("aggregate", "coach")  # <--- New transition
+workflow.add_edge("aggregate", "coach")
 workflow.add_edge("coach", "rank")
 workflow.add_edge("rank", "generate")
 workflow.add_edge("generate", END)
 
-
-app_graph = workflow.compile(checkpointer=memory)
+async def get_app():
+    conn = await aiosqlite.connect(DB_PATH)
+    memory = AsyncSqliteSaver(conn)
+    app = workflow.compile(checkpointer=memory)
+    return app, conn

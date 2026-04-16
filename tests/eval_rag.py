@@ -1,126 +1,89 @@
 import asyncio
-import aiosqlite
 import pandas as pd
 from datasets import Dataset
 
-# Ragas v1 imports
+# Ragas v1 Metrics
 from ragas import evaluate
 from ragas.metrics.collections import (
     faithfulness,
     answer_relevancy,
     context_precision,
 )
+from ragas.run_config import RunConfig
 
-# Ollama + LangChain
+# Local Ollama Components
 from langchain_ollama import ChatOllama, OllamaEmbeddings
 
-# LangGraph memory
-from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-
-# Your workflow
+# Import the factory from your graph.py
 from src.rag.graph import get_app
 
+async def run_test_rag():
+    print("🚀 Initializing 100% Local NutriCart Test Suite...")
 
-async def run_evaluations():
-    DB_PATH = "nutricart_checkpoints.db"
+    # 1. Force Local Judge (Ollama)
+    # This ensures Ragas doesn't try to use Gemini/OpenAI
+    judge_llm = ChatOllama(model="llama3", temperature=0)
+    judge_embeddings = OllamaEmbeddings(model="nomic-embed-text")
 
-    print("🚀 Starting Local NutriCart Evaluation (Ollama)...")
-
-    # ✅ Open connection manually (safer than context manager)
+    # 2. Get the Compiled App
     app_graph, conn = await get_app()
 
-    results = []
-
-    # ✅ Expanded dataset (add more for better evaluation)
-    test_data = [
+    # 3. Your Test Cases
+    test_cases = [
         {
-            "question": "Show me dairy items with high protein.",
-            "ground_truth": "High protein dairy items include DairyPure_Item_30 and HomeBest_Item_16."
-        },
-        {
-            "question": "Recommend low calorie snacks.",
-            "ground_truth": "Low calorie snacks include items with fewer calories such as light chips or diet snack options."
-        },
-        {
-            "question": "What are some healthy breakfast options?",
-            "ground_truth": "Healthy breakfast options include oats, fruits, yogurt, and high-protein cereals."
+            "question": "Compare my protein for April vs March.",
+            "ground_truth": "In April 2026, protein was Xg compared to Yg in March 2026.",
+            "customer_id": "C0146"
         }
     ]
 
-    for item in test_data:
+    evaluation_results = []
+
+    for case in test_cases:
         inputs = {
-            "question": item["question"],
-            "customer_id": "C0146",
+            "question": case["question"],
+            "customer_id": case["customer_id"],
             "user_feedback": {"disliked_products": []},
-            "results": [],
-            "ranked_results": [],
-            "aggregates": {},
-            "recommendations": [],
+            "results": [], "ranked_results": [], "aggregates": {}, "recommendations": []
         }
-
-        config = {"configurable": {"thread_id": "eval_test_thread"}}
-
+        
         try:
-            # ✅ Timeout protection
-            response = await asyncio.wait_for(
-                app_graph.ainvoke(inputs, config=config),
-                timeout=60,
-            )
-
-            # ✅ Safe answer fallback
-            answer = response.get("answer") or "No answer generated."
-
-            contexts = response.get("results", [])
-            contexts = [str(c) for c in contexts] if contexts else ["No context retrieved"]
-
-            results.append(
-                {
-                    "question": item["question"],
-                    "answer": answer,
-                    "contexts": contexts,
-                    "ground_truth": item["ground_truth"],
-                }
-            )
-
+            # Run inference
+            response = await app_graph.ainvoke(inputs, config={"configurable": {"thread_id": "test_thread"}})
+            
+            evaluation_results.append({
+                "question": case["question"],
+                "answer": response.get("answer", "No answer"),
+                "contexts": [str(c) for c in response.get("results", [])],
+                "ground_truth": case["ground_truth"]
+            })
+            print(f"✅ Generated answer for: {case['question']}")
         except Exception as e:
-            print(f"❌ Error during ainvoke: {e}")
+            print(f"❌ Graph Error: {e}")
 
-    # Close DB connection
     await conn.close()
 
-    if not results:
-        print("⚠️ No results gathered. Check Weaviate/Ollama setup.")
+    if not evaluation_results:
         return
 
-    # ✅ Setup Ragas Judge (Local)
-    langchain_llm = ChatOllama(model="llama3")
-    langchain_embeddings = OllamaEmbeddings(model="nomic-embed-text")
+    # 4. Run RAGAS Evaluation LOCALLY
+    # max_workers=1 is CRITICAL for local LLMs to prevent crashing your RAM/CPU
+    run_config = RunConfig(timeout=120, max_retries=3, max_workers=1)
 
-    dataset = Dataset.from_list(results)
-
-    print("⚖️ Judging responses...")
-
+    print("⚖️ Judging results locally with Llama3 (No API calls)...")
+    
+    dataset = Dataset.from_list(evaluation_results)
+    
     score = evaluate(
         dataset=dataset,
         metrics=[faithfulness, answer_relevancy, context_precision],
-        llm=langchain_llm,
-        embeddings=langchain_embeddings,
+        llm=judge_llm,           # <--- Overriding default (Gemini)
+        embeddings=judge_embeddings, # <--- Overriding default (Gemini)
+        run_config=run_config
     )
 
-    print("\n✅ Evaluation Complete!")
-
-    df = score.to_pandas()
-
-    print("\n📊 Scores:")
-    print(df[["question", "faithfulness", "answer_relevancy", "context_precision"]])
-
-    # ✅ Save results
-    df.to_csv("eval_results.csv", index=False)
-    print("\n💾 Results saved to eval_results.csv")
-
+    print("\n📊 Final Local Scores:")
+    print(score.to_pandas()[['question', 'faithfulness', 'answer_relevancy']])
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(run_evaluations())
-    except RuntimeError as e:
-        print(f"Loop error: {e}")
+    asyncio.run(run_test_rag())

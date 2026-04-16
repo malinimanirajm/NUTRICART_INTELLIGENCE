@@ -1,61 +1,28 @@
-# Grocery Purchase–Based Nutrition Dataset (Synthetic)
 
-## Description
-This project generates a synthetic grocery dataset that links customer purchase history with nutrition information.  
-It simulates grocery-app transaction data to enable nutrition and diet analysis without manual food logging.
+# NutriCart Intelligence 🛒
+**AI-Driven Personal Nutrition & Grocery Analytics Engine**
 
----
-
-## Dataset Summary
-- 400 customers  
-- Time period: Q1 2024 (Jan–Mar)  
-- 1–5 purchases per customer per week  
-- 6 product categories  
-- 15 brands across all categories  
-
----
-Since **NutriCart Intelligence** has evolved from a basic search tool into a sophisticated RAG pipeline with custom re-ranking and category normalization, your README should reflect that "Production-Ready" shift.
-
-A great technical README for an AI engineer should highlight the **Architecture**, the **Data Pipeline**, and the **State Management**.
-
-Here is a structured template for your `README.md` that captures everything we just built:
+NutriCart Intelligence is a stateful RAG (Retrieval-Augmented Generation) system designed to transform raw grocery data into actionable health insights. Built with **LangGraph**, **Weaviate**, and **Ollama**, it provides users with personalized consumption reports, protein-to-sugar comparisons, and an intelligent "Coaching Engine" that respects user-defined preferences and dislikes.
 
 ---
 
-# 🍎 NutriCart Intelligence: Advanced RAG for Fitness
+##  Key Features
 
-NutriCart Intelligence is a high-precision Retrieval-Augmented Generation (RAG) system designed to help users navigate complex nutritional data. It goes beyond simple keyword search by using **Semantic Category Mapping** and a **Multi-Stage Re-ranker** to prioritize high-protein, low-sugar options.
-
-## 🚀 Key Features
-
-* **Intelligent Intent Extraction:** Uses Gemini 2.0 Flash and Ollama to transform natural language queries (e.g., *"munchies under 5g sugar"*) into structured database filters.
-* **Custom Category Mapping:** A proprietary mapping layer in the ingestion pipeline that normalizes brand-specific names into functional categories like `snack`, `dairy`, and `pantry`.
-* **Fitness-First Re-ranking:** A deterministic ranking node that sorts retrieved items by **Protein Density** while strictly enforcing nutritional constraints (e.g., maximum sugar/calories).
-* **Hybrid Search:** Combines Weaviate’s vector embeddings with keyword-based BM25 search for maximum retrieval accuracy.
+* **Stateful AI Agent:** Managed via LangGraph to handle complex conversation flows and multi-step reasoning.
+* **Vector Search RAG:** High-performance retrieval of nutritional data using Weaviate.
+* **Dynamic Comparison Engine:** Real-time analysis of nutritional trends (e.g., Month-over-Month protein intake).
+* **Invisible Personalization:** A SQLite-backed "Vault" that stores user feedback to automatically filter out disliked products from search results and coaching recommendations.
+* **Company-Standard Evals:** Integrated **RAGAS** framework to measure Faithfulness, Relevance, and Precision using local LLM "Judges."
 
 ---
 
-## Architecture
+##  Technical Stack
 
-The system is built using a **LangGraph** state machine to ensure a predictable and traceable data flow:
-
-1.  **Extraction Node:** Normalizes user intent and extracts Pydantic-validated filters.
-2.  **Retrieval Node:** Executes a Hybrid Search against a local **Weaviate** instance.
-3.  **Aggregation Node:** Summarizes nutritional data for the current result set.
-4.  **Ranker Node:** Applies a "Hard Filter" and sorts items by Protein-to-Sugar ratios.
-5.  **Generation Node:** Produces a structured, natural language response.
-
-
-
----
-
-## 🛠️ Tech Stack
-
-* **Orchestration:** LangGraph / LangChain
-* **Vector Database:** Weaviate (Local)
-* **LLMs:** Gemini 2.0 Flash (Structured Output), Ollama (Llama 3.2 3b fallback)
-* **Backend:** FastAPI
-* **Environment:** Anaconda / Python 3.10+
+* **Orchestration:** LangGraph (StateGraph)
+* **LLM:** Ollama (Llama 3 / Mistral)
+* **Database:** Weaviate (Vector), SQLite (Checkpoints & User Vault)
+* **Framework:** FastAPI
+* **Evaluation:** RAGAS & LangSmith
 
 ---
 
@@ -64,38 +31,76 @@ The system is built using a **LangGraph** state machine to ensure a predictable 
 ```text
 ├── src/
 │   ├── rag/
-│   │   ├── config.py       # Global settings and Weaviate config
-│   │   ├── graph.py        # LangGraph workflow definition
-│   │   ├── ingester.py     # Data pipeline with Category Mapping
-│   │   └── parser.py       # Intent extraction and normalization
-├── data/
-│   └── raw/                # Source CSV nutrition and product data
-├── main.py                 # FastAPI Entry point
-└── README.md
+│   │   ├── graph.py       # Core LangGraph logic & nodes
+│   │   ├── parser.py      # Intent & filter extraction logic
+│   │   └── config.py      # Environment & API configurations
+│   ├── utils/
+│   │   ├── init_db.py     # SQLite persistence setup
+│   │   └── email_sender.py # SMTP background task integration
+│   └── main.py            # FastAPI entry point
+├── tests/
+│   └── eval_rag.py        # RAGAS evaluation suite
+├── data/                  # Mock grocery & nutrition datasets
+├── README.md              # Project documentation
+└── requirements.txt       # Dependency manifest
 ```
 
 ---
 
-## 🚦 Getting Started
+## 🔧 Installation & Setup
 
-1.  **Ingest Data:**
+1.  **Clone the Repository:**
     ```bash
-    python src/rag/ingester.py
-    ```
-2.  **Start the API:**
-    ```bash
-    uvicorn main:app --reload
-    ```
-3.  **Query the System:**
-    ```bash
-    curl -X 'POST' \
-      'http://localhost:8000/query' \
-      -H 'Content-Type: application/json' \
-      -d '{"question": "get me snacks less than 5g of sugar"}'
+    git clone https://github.com/yourusername/nutricart-intelligence.git
+    cd nutricart-intelligence
     ```
 
-Scenario,Mode,Purpose,Example Query
-1,Discovery,Semantic search for products matching macro goals.,"""Find snacks < 5g sugar with 10g protein."""
-2,Analytics,Time-based aggregation of a user's consumption history.,"""Show my weekly protein totals for C001."""
-3,Comparison,Delta calculation between two specific time periods.,"""Compare my protein in March vs February."""
-4,Coaching,(Beta) Proactive recommendations based on data gaps.,"""How can I fix my protein drop from last month?"""
+2.  **Set Up Virtual Environment:**
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # macOS/Linux
+    ```
+
+3.  **Install Dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4.  **Start Local Services:**
+    Ensure **Ollama** and **Weaviate** are running:
+    ```bash
+    ollama serve
+    # Ensure Weaviate is running on localhost:8080
+    ```
+
+---
+
+##  Running Evaluations
+
+To ensure the RAG system meets professional quality standards, run the evaluation suite:
+
+```bash
+python -m tests.eval_rag
+```
+This script evaluates the agent using local **Ollama** models as judges for **Faithfulness** and **Answer Relevancy**.
+
+---
+
+## Background Tasks: Email Updates
+
+The system utilizes FastAPI's `BackgroundTasks` to send nutritional summaries without blocking the user interface.
+* **Protocol:** SMTP via `aiosmtplib`
+* **Trigger:** Automated after specific comparison queries or weekly digests.
+
+---
+
+##  Contribution
+
+1.  Fork the project.
+2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`).
+3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`).
+4.  Push to the Branch (`git push origin feature/AmazingFeature`).
+5.  Open a Pull Request.
+
+---
+

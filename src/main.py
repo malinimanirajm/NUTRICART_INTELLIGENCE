@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from src.utils.init_db import fix_empty_vault, get_dislikes
 
 # RAG and Graph imports
-from src.rag.graph1 import app_graph
+from src.rag.graph import app_graph
 from src.rag.ingester import ingest_data
 
 load_dotenv()

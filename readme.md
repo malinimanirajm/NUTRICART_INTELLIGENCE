@@ -1,47 +1,58 @@
-
-# NutriCart Intelligence 🛒
-**AI-Driven Personal Nutrition & Grocery Analytics Engine**
-
-NutriCart Intelligence is a stateful RAG (Retrieval-Augmented Generation) system designed to transform raw grocery data into actionable health insights. Built with **LangGraph**, **Weaviate**, and **Ollama**, it provides users with personalized consumption reports, protein-to-sugar comparisons, and an intelligent "Coaching Engine" that respects user-defined preferences and dislikes.
+To reflect your recent architectural hardening, I’ve updated your `README.md` to include the **Guardrails**, the **Safe-Routing logic**, and the **LLMOPs** enhancements.
 
 ---
 
-##  Key Features
+# NutriCart Intelligence v2.5 🛒
+**Enterprise-Grade Agentic RAG for Precision Nutrition & Analytics**
 
-* **Stateful AI Agent:** Managed via LangGraph to handle complex conversation flows and multi-step reasoning.
-* **Vector Search RAG:** High-performance retrieval of nutritional data using Weaviate.
-* **Dynamic Comparison Engine:** Real-time analysis of nutritional trends (e.g., Month-over-Month protein intake).
-* **Invisible Personalization:** A SQLite-backed "Vault" that stores user feedback to automatically filter out disliked products from search results and coaching recommendations.
-* **Company-Standard Evals:** Integrated **RAGAS** framework to measure Faithfulness, Relevance, and Precision using local LLM "Judges."
+NutriCart Intelligence is a stateful, safety-hardened AI engine designed to transform grocery data into reliable health insights. Unlike standard RAG systems, NutriCart utilizes an **Agentic Graph** to handle complex reasoning, temporal comparisons (2024-anchored), and persistent user memory.
 
 ---
 
-##  Technical Stack
-
-* **Orchestration:** LangGraph (StateGraph)
-* **LLM:** Ollama (Llama 3 / Mistral)
-* **Database:** Weaviate (Vector), SQLite (Checkpoints & User Vault)
-* **Framework:** FastAPI
-* **Evaluation:** RAGAS & LangSmith
+## 🛡️ New: Multi-Layer Guardrails
+To ensure production-grade reliability, the system now features a specialized safety pipeline:
+* **Input Guardrails:** Intercepts prompt injections and off-topic queries before they reach the LLM.
+* **Output Validation:** A "Fact-Checker" node that cross-references AI-generated responses against retrieved data to eliminate hallucinations.
+* **Safe Routing:** Conditional graph logic that blocks malicious paths and triggers self-correction loops.
 
 ---
 
-## 📂 Project Structure
+## ✨ Core Features
+
+* **Agentic Orchestration:** Built with **LangGraph** to manage stateful nodes for extraction, retrieval, and coaching.
+* **Temporal Intelligence:** Reference-anchored logic to handle historical 2024 data inquiries from a 2026 runtime.
+* **Hybrid Vector Search:** Optimized **Weaviate** queries (Alpha 0.2) combining semantic meaning with exact keyword SKU filtering.
+* **Invisible Personalization:** A SQLite-backed "Vault" that remembers user dislikes to filter recommendations automatically.
+* **Resource-Conscious Evals:** Integrated **RAGAS** suite with serial execution to prevent CPU thermal throttling on local hardware.
+
+---
+
+## 🏗️ Technical Stack & LLMOPs
+
+* **Orchestration:** LangGraph (Stateful Logic)
+* **LLM Engine:** Dual-model setup (Ollama local-first, Google Gemini fallback)
+* **Vector DB:** Weaviate
+* **Relational DB:** SQLite (State Checkpointing & Feedback Vault)
+* **Observability:** LangSmith (Trace Auditing & Evaluation)
+* **API:** FastAPI (Asynchronous Engine)
+
+---
+
+## 📂 Updated Project Structure
 
 ```text
 ├── src/
 │   ├── rag/
-│   │   ├── graph.py       # Core LangGraph logic & nodes
-│   │   ├── parser.py      # Intent & filter extraction logic
-│   │   └── config.py      # Environment & API configurations
+│   │   ├── graph.py       # Hardened Graph with Guardrail Nodes
+│   │   ├── parser.py      # Dual-model filter extraction logic
+│   │   ├── config.py      # Environment & ID padding configs
+│   │   └── security.py    # Sanitizers & Injection detection
 │   ├── utils/
-│   │   ├── init_db.py     # SQLite persistence setup
-│   │   └── email_sender.py # SMTP background task integration
-│   └── main.py            # FastAPI entry point
+│   │   └── init_db.py     # SQLite persistence & Vault setup
+│   └── main.py            # FastAPI entry point with SQLite Vault hooks
 ├── tests/
-│   └── eval_rag.py        # RAGAS evaluation suite
-├── data/                  # Mock grocery & nutrition datasets
-├── README.md              # Project documentation
+│   └── eval_rag.py        # Serialized RAGAS suite (No-Meltdown Mode)
+├── data/                  # 2024 SKU & Nutrition datasets
 └── requirements.txt       # Dependency manifest
 ```
 
@@ -49,58 +60,36 @@ NutriCart Intelligence is a stateful RAG (Retrieval-Augmented Generation) system
 
 ## 🔧 Installation & Setup
 
-1.  **Clone the Repository:**
-    ```bash
-    git clone https://github.com/yourusername/nutricart-intelligence.git
-    cd nutricart-intelligence
-    ```
+1. **Ingest Data:**
+   ```bash
+   python -m src.rag.ingester  # Refreshes Weaviate with optimized schemas
+   ```
 
-2.  **Set Up Virtual Environment:**
-    ```bash
-    python -m venv venv
-    source venv/bin/activate  # macOS/Linux
-    ```
+2. **Start the API:**
+   ```bash
+   python main.py
+   ```
 
-3.  **Install Dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-4.  **Start Local Services:**
-    Ensure **Ollama** and **Weaviate** are running:
-    ```bash
-    ollama serve
-    # Ensure Weaviate is running on localhost:8080
-    ```
+3. **Query the Agent:**
+   ```bash
+   curl -X POST "http://localhost:8000/ask" \
+   -H "Content-Type: application/json" \
+   -d '{"thread_id": "C001", "question": "Find snacks with < 5g sugar"}'
+   ```
 
 ---
 
-##  Running Evaluations
+## ⚖️ Evaluation & Quality Control
 
-To ensure the RAG system meets professional quality standards, run the evaluation suite:
-
-```bash
-python -m tests.eval_rag
-```
-This script evaluates the agent using local **Ollama** models as judges for **Faithfulness** and **Answer Relevancy**.
+The system implements **LLMOPs** best practices via the `eval_rag.py` suite. It evaluates:
+* **Faithfulness:** Does the answer match the retrieved product data?
+* **Answer Relevancy:** Does the response actually address the user's nutritional goal?
+* **Context Precision:** Are the top-ranked products in the retrieval the most relevant?
 
 ---
 
-## Background Tasks: Email Updates
+## 🔒 Security Policy
 
-The system utilizes FastAPI's `BackgroundTasks` to send nutritional summaries without blocking the user interface.
-* **Protocol:** SMTP via `aiosmtplib`
-* **Trigger:** Automated after specific comparison queries or weekly digests.
+NutriCart utilizes a **Zero-Trust Input Model**. Every query is analyzed by the `guard_node` for injection patterns (e.g., "ignore previous instructions") and domain relevance (Nutrition/Grocery only). Failure to pass these checks results in an immediate safety-halt.
 
 ---
-
-##  Contribution
-
-1.  Fork the project.
-2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`).
-3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-4.  Push to the Branch (`git push origin feature/AmazingFeature`).
-5.  Open a Pull Request.
-
----
-

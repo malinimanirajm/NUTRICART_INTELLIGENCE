@@ -16,6 +16,8 @@ from src.rag.ingester import ingest_data
 
 load_dotenv()
 
+# In src/rag/graph.py # or whatever your variable name is
+
 # --- MODERN: Lifespan Manager ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):

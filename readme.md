@@ -1,95 +1,96 @@
-To reflect your recent architectural hardening, I’ve updated your `README.md` to include the **Guardrails**, the **Safe-Routing logic**, and the **LLMOPs** enhancements.
+# 🛒 NutriCart Intelligence: Safety-First Nutrition AI
+
+NutriCart Intelligence is an advanced RAG (Retrieval-Augmented Generation) agent built with **LangGraph**. It serves as a personal nutrition assistant that helps users discover products, compare nutritional values, and analyze their consumption history across weekly, monthly, and yearly intervals.
+
+## 🌟 Key Features
+
+### 1. Multi-Mode Intelligence
+The agent dynamically switches between three operational modes based on user intent:
+*   **Discovery:** Finding new products based on dietary constraints (e.g., "Find low sugar snacks").
+*   **Comparison:** Side-by-side nutritional analysis (e.g., "Compare Product A vs Product B").
+*   **Analysis:** Historical consumption reports (Weekly, Monthly, Yearly) calculating total protein, sugar, and calorie intake.
+
+### 2. Dual-Layer Privacy Vault
+To ensure enterprise-grade security, the system separates public product data from sensitive user info:
+*   **Vector Library (Weaviate):** Stores product embeddings and consumption logs for high-speed semantic search and aggregation.
+*   **Relational Vault (SQLite):** A secure, local database containing PII (Personally Identifiable Information) like emails and phone numbers, accessed only at the final delivery stage.
+
+### 3. Automated Safety Guardrails
+*   **Input Guard:** Detects and blocks prompt injections and non-nutrition queries.
+*   **Output Validator:** Fact-checks AI responses against raw database results to eliminate hallucinations.
+*   **Outbound Guard:** Automatically redacts internal database IDs and filters out restricted medical advice before transmission.
 
 ---
 
-# NutriCart Intelligence v2.5 🛒
-**Enterprise-Grade Agentic RAG for Precision Nutrition & Analytics**
+## 🏗️ Architecture
 
-NutriCart Intelligence is a stateful, safety-hardened AI engine designed to transform grocery data into reliable health insights. Unlike standard RAG systems, NutriCart utilizes an **Agentic Graph** to handle complex reasoning, temporal comparisons (2024-anchored), and persistent user memory.
+The agent follows a sophisticated graph-based workflow to ensure every response is verified and secure.
 
----
 
-## 🛡️ New: Multi-Layer Guardrails
-To ensure production-grade reliability, the system now features a specialized safety pipeline:
-* **Input Guardrails:** Intercepts prompt injections and off-topic queries before they reach the LLM.
-* **Output Validation:** A "Fact-Checker" node that cross-references AI-generated responses against retrieved data to eliminate hallucinations.
-* **Safe Routing:** Conditional graph logic that blocks malicious paths and triggers self-correction loops.
 
 ---
 
-## ✨ Core Features
-
-* **Agentic Orchestration:** Built with **LangGraph** to manage stateful nodes for extraction, retrieval, and coaching.
-* **Temporal Intelligence:** Reference-anchored logic to handle historical 2024 data inquiries from a 2026 runtime.
-* **Hybrid Vector Search:** Optimized **Weaviate** queries (Alpha 0.2) combining semantic meaning with exact keyword SKU filtering.
-* **Invisible Personalization:** A SQLite-backed "Vault" that remembers user dislikes to filter recommendations automatically.
-* **Resource-Conscious Evals:** Integrated **RAGAS** suite with serial execution to prevent CPU thermal throttling on local hardware.
-
----
-
-## 🏗️ Technical Stack & LLMOPs
-
-* **Orchestration:** LangGraph (Stateful Logic)
-* **LLM Engine:** Dual-model setup (Ollama local-first, Google Gemini fallback)
-* **Vector DB:** Weaviate
-* **Relational DB:** SQLite (State Checkpointing & Feedback Vault)
-* **Observability:** LangSmith (Trace Auditing & Evaluation)
-* **API:** FastAPI (Asynchronous Engine)
-
----
-
-## 📂 Updated Project Structure
+## 📂 Project Structure
 
 ```text
+NURICART_INTELLIGENCE/
 ├── src/
 │   ├── rag/
-│   │   ├── graph.py       # Hardened Graph with Guardrail Nodes
-│   │   ├── parser.py      # Dual-model filter extraction logic
-│   │   ├── config.py      # Environment & ID padding configs
-│   │   └── security.py    # Sanitizers & Injection detection
+│   │   ├── graph.py          # LangGraph orchestration and logic
+│   │   ├── parser.py         # LLM-based intent & filter extraction
+│   │   └── config.py         # Centralized paths and API settings
 │   ├── utils/
-│   │   └── init_db.py     # SQLite persistence & Vault setup
-│   └── main.py            # FastAPI entry point with SQLite Vault hooks
-├── tests/
-│   └── eval_rag.py        # Serialized RAGAS suite (No-Meltdown Mode)
-├── data/                  # 2024 SKU & Nutrition datasets
-└── requirements.txt       # Dependency manifest
+│   │   └── init_db.py        # SQLite Vault & Log table initializer
+├── data/
+│   └── raw/                  # Source CSV files (products & nutrition)
+├── nutricart_vault.db        # Secure local SQLite database
+└── test_graph.py             # End-to-end integration test suite
 ```
 
 ---
 
-## 🔧 Installation & Setup
+## 🛠️ Getting Started
 
-1. **Ingest Data:**
-   ```bash
-   python -m src.rag.ingester  # Refreshes Weaviate with optimized schemas
-   ```
+### 1. Prerequisites
+*   **Docker:** For running Weaviate.
+*   **Ollama:** For local LLM processing (Llama 3.2:3b).
+*   **Python 3.10+**
 
-2. **Start the API:**
-   ```bash
-   python main.py
-   ```
+### 2. Installation
+```bash
+# Install dependencies
+pip install langgraph weaviate-client aiosqlite langchain_ollama langchain_google_genai
 
-3. **Query the Agent:**
-   ```bash
-   curl -X POST "http://localhost:8000/ask" \
-   -H "Content-Type: application/json" \
-   -d '{"thread_id": "C001", "question": "Find snacks with < 5g sugar"}'
-   ```
+# Initialize the Secure Vault
+python3 src/utils/init_db.py
+```
 
----
-
-## ⚖️ Evaluation & Quality Control
-
-The system implements **LLMOPs** best practices via the `eval_rag.py` suite. It evaluates:
-* **Faithfulness:** Does the answer match the retrieved product data?
-* **Answer Relevancy:** Does the response actually address the user's nutritional goal?
-* **Context Precision:** Are the top-ranked products in the retrieval the most relevant?
+### 3. Infrastructure
+Launch the vector database:
+```bash
+docker-compose up -d
+```
 
 ---
 
-## 🔒 Security Policy
+## 📊 Usage & Testing
 
-NutriCart utilizes a **Zero-Trust Input Model**. Every query is analyzed by the `guard_node` for injection patterns (e.g., "ignore previous instructions") and domain relevance (Nutrition/Grocery only). Failure to pass these checks results in an immediate safety-halt.
+To run a full system verification—including a nutrition analysis report simulation—run:
+
+```bash
+export PYTHONPATH=$PYTHONPATH:.
+python3 test_graph.py
+```
+
+### Example Analysis Query
+> "How much protein have I consumed this month?"
+
+1.  **Parser** identifies `mode="consumption"` and `granularity="monthly"`.
+2.  **Graph** retrieves logs for the specific `customer_id` from the last 30 days.
+3.  **Aggregator** calculates totals and formats a Markdown report.
+4.  **WhatsApp Node** simulates sending the report to the verified user in the Vault.
 
 ---
+
+## 🛡️ Safety Compliance
+This project implements a **Strict Redaction Policy**. Any response containing banned medical terminology (e.g., "cure," "prescribe") is automatically intercepted and blocked. Internal system identifiers are swapped for generic "Customer" labels in all outbound communications.

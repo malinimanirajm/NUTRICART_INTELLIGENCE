@@ -32,6 +32,22 @@ def fix_empty_vault():
                 last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
+
+        # NEW: Customer Contact Table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS customers (
+                customer_id TEXT PRIMARY KEY,
+                email TEXT,
+                phone_number TEXT,
+                opt_in_status INTEGER DEFAULT 1
+            )
+        """)
+        
+        # Let's seed a test user for your development
+        cursor.execute("""
+            INSERT OR IGNORE INTO customers (customer_id, email, phone_number) 
+            VALUES ('C001', 'user@example.com', '+1234567890')
+        """)
         
         conn.commit()
         print("✅ Success: NutriCart Vault is initialized.")

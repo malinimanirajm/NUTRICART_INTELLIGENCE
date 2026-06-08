@@ -2,7 +2,7 @@ import sqlite3
 import os
 import csv
 import weaviate
-import weaviate.classes as wvc
+import weaviate.classes.config as wvc
 
 # Absolute path configurations mapped to the clean directory layout
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

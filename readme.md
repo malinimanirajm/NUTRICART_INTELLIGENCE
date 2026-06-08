@@ -53,7 +53,7 @@ NutriCart Intelligence is designed around an event-driven **State Machine** orch
 
 ---
 
-## 🚀 Deep-Dive Architectural & Engineering Q&A
+## Deep-Dive Architectural & Engineering Q&A
 
 ### 1. Basic LLM App vs. Actual Agent
 * **Basic LLM Application:** Follows a strict, linear pipeline ($User \rightarrow RAG \rightarrow LLM \rightarrow Output$). The LLM functions purely as a text-generator or semantic bridge; it has no control over its own execution flow or data retrieval mechanisms.

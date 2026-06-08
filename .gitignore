@@ -12,3 +12,6 @@ data/raw/*
 __pycache__/
 .env
 nuti_prod/
+
+
+generate_blueprint

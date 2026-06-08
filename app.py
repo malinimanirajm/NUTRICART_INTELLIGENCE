@@ -31,12 +31,12 @@ st.markdown("""
 if "data" not in st.session_state:
     st.session_state.data = None
 
-st.title("🍎 NutriCart Intelligence")
+st.title(" NutriCart Intelligence")
 st.subheader("Agentic Nutrition Dashboard | V2.1 (Adaptive)")
 
 # --- Sidebar ---
 with st.sidebar:
-    st.header("🛠️ Audit & Monitoring")
+    st.header(" Audit & Monitoring")
     thread_id = st.text_input("Session ID", value="malini_dev_01")
     show_raw = st.toggle("Show Raw Trace", value=False)
     if st.button("Clear History"):
@@ -56,8 +56,8 @@ if prompt:
             )
             # Store data in session state so buttons don't wipe the screen
             st.session_state.data = response.json()
-            st.write(f"🧬 Querying Weaviate...")
-            st.write("🧠 Reasoning via Coaching Node...")
+            st.write(f" Querying Weaviate...")
+            st.write("Reasoning via Coaching Node...")
             status.update(label="Response Generated!", state="complete", expanded=False)
         except Exception as e:
             status.update(label="Execution Failed", state="error")
@@ -75,7 +75,7 @@ if st.session_state.data:
     if matches:
         df = pd.DataFrame(matches)
         st.divider()
-        st.subheader("📊 Consumption Analytics")
+        st.subheader("Consumption Analytics")
         col1, col2 = st.columns(2)
 
         with col1:
@@ -95,7 +95,7 @@ if st.session_state.data:
     recs = data.get("recommendations", [])
     if recs:
         st.markdown('<div class="coach-box">', unsafe_allow_html=True)
-        st.markdown("### 💡 AI Coach's Rescue Plan")
+        st.markdown("### AI Coach's Rescue Plan")
         st.write("I identified a nutritional gap. Add these high-efficiency items to your next cart:")
         
         rec_cols = st.columns(len(recs))
@@ -118,7 +118,7 @@ if st.session_state.data:
         st.markdown('</div>', unsafe_allow_html=True)
 
     # 4. Raw Data Expanders
-    with st.expander("📝 View Full Audit Trail", expanded=False):
+    with st.expander("View Full Audit Trail", expanded=False):
         st.json(data)
 
 # --- Footer ---

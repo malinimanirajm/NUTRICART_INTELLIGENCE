@@ -1,33 +1,26 @@
 import weaviate
+# You need this line to access query.Filter and query.hybrid
 import weaviate.classes.query as query
 
-def run_test_query(query_text, data_type=None):
-    print(f"\n--- Testing Query: '{query_text}' ---")
-    
+def find_healthy_snacks(min_protein, max_sugar):
     with weaviate.connect_to_local() as client:
         collection = client.collections.get("NutricartUnified")
         
-        # Define filter if we only want one type of data
-        filters = None
-        if data_type:
-            filters = query.Filter.by_property("data_type").equal(data_type)
-        
-        # Perform Hybrid Search
-        response = collection.query.hybrid(
-            query=query_text,
-            alpha=0.5,
-            limit=3,
-            filters=filters
+        # Apply strict mathematical filters
+        filters = (
+            query.Filter.by_property("protein_g").greater_or_equal(min_protein) &
+            query.Filter.by_property("added_sugar_g").less_or_equal(max_sugar)
         )
         
-        for i, obj in enumerate(response.objects):
-            print(f"\nResult {i+1}:")
-            print(f"Type: {obj.properties['data_type']}")
-            print(f"Content: {obj.properties['content']}")
+        response = collection.query.hybrid(
+            query="snacks",
+            filters=filters,
+            limit=2
+        )
+        
+        print(f"\n--- Results: Snacks with >= {min_protein}g protein & <= {max_sugar}g sugar ---")
+        for obj in response.objects:
+            print(f"Product: {obj.properties['content']} | Protein: {obj.properties.get('protein_g')}g | Sugar: {obj.properties.get('added_sugar_g')}g")
 
-if __name__ == "__main__":
-    # Test 1: Search everything
-    run_test_query("organic food purchase")
-    
-    # Test 2: Search ONLY transactions
-    run_test_query("organic food purchase", data_type="transaction")
+# Run this instead of your general search
+find_healthy_snacks(min_protein=10, max_sugar=5)

@@ -17,3 +17,9 @@ numpy
 
 # Observability & Ops
 langsmith
+
+langgraph
+langchain
+langchain-community
+langchain-ollama
+weaviate-client

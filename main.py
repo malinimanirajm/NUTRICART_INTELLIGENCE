@@ -1,28 +1,45 @@
-from rag.agents.agent_system import app
+from agents.agent_system import app
 from langchain_core.messages import HumanMessage
 from dotenv import load_dotenv
 import os
-# Load the .env file
+from langsmith import traceable
 load_dotenv()
 
-# Use a consistent thread_id for the conversation session
-THREAD_ID = "nature-nest-session-001"
-CONFIG = {"configurable": {"thread_id": THREAD_ID}}
-
-def chat_with_agent(user_input):
-    # Pass the config to the invoke method
-    result = app.invoke({"messages": [HumanMessage(content=user_input)]}, config=CONFIG)
+@traceable
+def chat_with_agent(user_message, thread_id):
+    """
+    Invokes the agent while maintaining thread state via thread_id.
+    """
+    # Using the same thread_id across turns ensures persistence
+    config = {
+        "configurable": {"thread_id": thread_id},
+        "metadata": {"thread_id": thread_id}
+    }
     
-    print("\n--- Final Conversation History ---")
-    for msg in result["messages"]:
-        print(f"{msg.type.upper()}: {msg.content}")
+    # Invoke the graph
+    result = app.invoke(
+        {"messages": [HumanMessage(content=user_message)]}, 
+        config=config
+    )
+    
+    # Print the last message from the assistant
+    last_message = result["messages"][-1].content
+    print(f"AI: {last_message}")
+    return result
 
 if __name__ == "__main__":
-    # First turn: Researcher finds data and saves it to the state checkpoint
-    chat_with_agent("Find me recent purchases of snacks for customer cs0016")
+    # Define a single session ID for this conversation
+    SESSION_ID = "cs0016_session_001"
     
-    # Second turn: Analytics agent loads the state from the checkpoint 
-    # and sees the data found in the previous turn
-    chat_with_agent("Calculate total protein and sugar from my recent purchases")
-    print(f"Tracing enabled: {os.getenv('LANGSMITH_TRACING')}")
+    print(f"--- Starting Session: {SESSION_ID} ---")
+    
+    # First turn: Researcher collects data
+   # print("\nUSER: Hi I am customer cs0023")
+   # chat_with_agent("Hi I am customer cs0023", thread_id=SESSION_ID)
+    
+    # Second turn: Analytics agent sees the 'data_found' from the first turn
+    print("\nUSER:Hi user cs0089 here Get me snacks  with at least 5g of protein and some insights or information about protein.")
+    chat_with_agent("Hi user cs0089 here Get me snacks  with at least 5g of protein and some insights or information about protein.", thread_id=SESSION_ID)
+    
+    print(f"\nTracing enabled: {os.getenv('LANGSMITH_TRACING')}")
     print(f"Project name: {os.getenv('LANGSMITH_PROJECT')}")

@@ -23,3 +23,6 @@ langchain
 langchain-community
 langchain-ollama
 weaviate-client
+
+guardrails-ai
+rapidfuzz

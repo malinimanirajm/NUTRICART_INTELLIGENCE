@@ -163,6 +163,7 @@ class DictionaryLoader:
 # ---------------------------------------------------------
 
 loader = DictionaryLoader()
+print(loader.client.collections.list_all().keys())
 try:
     CACHE = loader.load()
 finally:

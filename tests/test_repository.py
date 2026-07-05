@@ -1,4 +1,4 @@
-from agents.search.query_normalizer import QueryNormalizer
+from agents.search.normalizer import QueryNormalizer
 
 normalizer = QueryNormalizer()
 

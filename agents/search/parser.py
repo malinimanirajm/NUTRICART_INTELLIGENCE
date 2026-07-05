@@ -1,5 +1,4 @@
 from config.dictionary_loader import CACHE
-from config.search_config import NUTRIENTS
 
 from agents.search.normalizer import QueryNormalizer
 from agents.search.rules.rule_engine import RuleEngine
@@ -10,6 +9,7 @@ from agents.search.plugins.nutrition_plugin import NutritionPlugin
 from agents.search.plugins.preference_plugin import PreferencePlugin
 
 from agents.search.filters import SearchFilters
+
 
 class SearchParser:
 
@@ -33,19 +33,17 @@ class SearchParser:
 
                 ),
 
-                NutritionPlugin(
+                NutritionPlugin(),
 
-                    NUTRIENTS
-
-                ),
-
-                PreferencePlugin()
+                PreferencePlugin(),
 
             ]
 
         )
 
-    def parse(self, query):
+    # ---------------------------------------------------------
+
+    def parse(self, query: str) -> SearchFilters:
 
         query = self.normalizer.normalize(query)
 
@@ -55,6 +53,6 @@ class SearchParser:
 
             query,
 
-            filters
+            filters,
 
         )

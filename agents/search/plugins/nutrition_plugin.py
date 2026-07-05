@@ -1,278 +1,628 @@
 """
-Generic Nutrition Plugin
+Nutrition Plugin
 
-Supports all nutrients configured in search_config.py
+Generic nutrient parser.
 
-Examples
+Supports
 
-protein > 20
-protein >= 20
-protein < 20
-protein <= 20
+✓ protein > 20
+✓ protein >= 20
+✓ protein below 20
+✓ protein between 10 and 20
 
-protein greater than 20
-greater than 20g protein
+✓ below 100 calories
+✓ above 20 protein
+✓ between 100 and 200 calories
 
-protein between 20 and 30
-between 20 and 30 protein
+✓ aliases
+✓ units
+✓ natural language
 
-protein 20-30
-
-at least 20g protein
-at most 5g sugar
+Works for every nutrient in
+config.search_config.NUTRIENTS
 """
 
 import re
 
+from config.search_config import NUTRIENTS
 from .base_plugin import SearchPlugin
 
 
 class NutritionPlugin(SearchPlugin):
 
-    def __init__(self, nutrient_rules):
+    def __init__(self):
 
-        self.rules = nutrient_rules
+        self.rules = NUTRIENTS
 
-    # --------------------------------------------------
+        #
+        # Minimum
+        #
 
-    def apply(self, query, filters):
+        self.min_patterns = [
+
+            r"{name}\s*(>=|>)\s*(\d+(?:\.\d+)?)",
+
+            r"{name}\s*(?:greater than|more than|above|over)\s*(\d+(?:\.\d+)?)",
+
+            r"(?:greater than|more than|above|over)\s*(\d+(?:\.\d+)?)\s*(?:g|gm|grams|mg|cal|kcal|calories)?\s*{name}",
+
+        ]
+
+        #
+        # Maximum
+        #
+
+        self.max_patterns = [
+
+            r"{name}\s*(<=|<)\s*(\d+(?:\.\d+)?)",
+
+            r"{name}\s*(?:less than|below|under)\s*(\d+(?:\.\d+)?)",
+
+            r"(?:less than|below|under)\s*(\d+(?:\.\d+)?)\s*(?:g|gm|grams|mg|cal|kcal|calories)?\s*{name}",
+
+        ]
+
+        #
+        # Between
+        #
+
+        self.between_patterns = [
+
+            r"{name}\s*between\s*(\d+(?:\.\d+)?)\s*and\s*(\d+(?:\.\d+)?)",
+
+            r"between\s*(\d+(?:\.\d+)?)\s*and\s*(\d+(?:\.\d+)?)\s*(?:g|gm|grams|mg|cal|kcal|calories)?\s*{name}",
+
+        ]
+
+        #
+        # Unit only
+        #
+
+        self.unit_patterns = [
+
+            r"(\d+(?:\.\d+)?)\s*(?:g|gm|grams|mg|cal|kcal|calories)\s*{name}"
+
+        ]
+
+    # ---------------------------------------------------------
+
+    def apply(
+
+        self,
+
+        query,
+
+        filters,
+
+    ):
 
         query = query.lower()
 
         for nutrient, config in self.rules.items():
 
-            self._extract(
+            aliases = config.get(
 
-                nutrient,
+                "aliases",
 
-                config,
-
-                query,
-
-                filters
+                [nutrient]
 
             )
 
-    # --------------------------------------------------
+            for alias in aliases:
 
-    def _extract(
+                self._extract_between(
+
+                    alias,
+
+                    nutrient,
+
+                    query,
+
+                    filters,
+
+                    config,
+
+                )
+
+                self._extract_minimum(
+
+                    alias,
+
+                    nutrient,
+
+                    query,
+
+                    filters,
+
+                    config,
+
+                )
+
+                self._extract_maximum(
+
+                    alias,
+
+                    nutrient,
+
+                    query,
+
+                    filters,
+
+                    config,
+
+                )
+
+                self._extract_units(
+
+                    alias,
+
+                    nutrient,
+
+                    query,
+
+                    filters,
+
+                    config,
+
+                )
+
+        return filters
+
+    # ---------------------------------------------------------
+
+    def _extract_between(
+
+        self,
+
+        alias,
+
+        nutrient,
+
+        query,
+
+        filters,
+
+        config,
+
+    ):
+
+        for pattern in self.between_patterns:
+
+            regex = pattern.format(
+
+                name=re.escape(alias)
+
+            )
+
+            match = re.search(
+
+                regex,
+
+                query,
+
+            )
+
+            if not match:
+
+                continue
+
+            minimum = float(
+
+                match.group(1)
+
+            )
+
+            maximum = float(
+
+                match.group(2)
+
+            )
+
+            setattr(
+
+                filters,
+
+                config["min_filter"],
+
+                minimum,
+
+            )
+
+            setattr(
+
+                filters,
+
+                config["max_filter"],
+
+                maximum,
+
+            )
+
+            setattr(
+
+                filters,
+
+                f"{nutrient}_min_operator",
+
+                ">=",
+
+            )
+
+            setattr(
+
+                filters,
+
+                f"{nutrient}_max_operator",
+
+                "<=",
+
+            )
+
+            return
+        # ---------------------------------------------------------
+
+    def _extract_minimum(
+
+        self,
+
+        alias,
+
+        nutrient,
+
+        query,
+
+        filters,
+
+        config,
+
+    ):
+
+        for pattern in self.min_patterns:
+
+            regex = pattern.format(
+
+                name=re.escape(alias)
+
+            )
+
+            match = re.search(
+
+                regex,
+
+                query,
+
+            )
+
+            if not match:
+
+                continue
+
+            #
+            # protein > 20
+            #
+
+            if len(match.groups()) == 2:
+
+                operator = match.group(1)
+
+                value = float(
+
+                    match.group(2)
+
+                )
+
+            #
+            # protein above 20
+            #
+
+            else:
+
+                operator = ">"
+
+                value = float(
+
+                    match.group(1)
+
+                )
+
+            self._set_min(
+
+                nutrient,
+
+                filters,
+
+                config,
+
+                value,
+
+                operator,
+
+            )
+
+            return
+
+    # ---------------------------------------------------------
+
+    def _extract_maximum(
+
+        self,
+
+        alias,
+
+        nutrient,
+
+        query,
+
+        filters,
+
+        config,
+
+    ):
+
+        for pattern in self.max_patterns:
+
+            regex = pattern.format(
+
+                name=re.escape(alias)
+
+            )
+
+            match = re.search(
+
+                regex,
+
+                query,
+
+            )
+
+            if not match:
+
+                continue
+
+            #
+            # protein < 20
+            #
+
+            if len(match.groups()) == 2:
+
+                operator = match.group(1)
+
+                value = float(
+
+                    match.group(2)
+
+                )
+
+            #
+            # protein below 20
+            #
+
+            else:
+
+                operator = "<"
+
+                value = float(
+
+                    match.group(1)
+
+                )
+
+            self._set_max(
+
+                nutrient,
+
+                filters,
+
+                config,
+
+                value,
+
+                operator,
+
+            )
+
+            return
+
+    # ---------------------------------------------------------
+
+    def _set_min(
 
         self,
 
         nutrient,
 
+        filters,
+
         config,
 
-        query,
+        value,
 
-        filters
+        operator,
 
     ):
 
-        min_field = config["min_filter"]
+        setattr(
 
-        max_field = config["max_filter"]
+            filters,
 
-        min_operator_field = f"{nutrient}_min_operator"
+            config["min_filter"],
 
-        max_operator_field = f"{nutrient}_max_operator"
-
-        # ====================================================
-        # calories between 100 and 200
-        # protein between 20 and 30
-        # ====================================================
-
-        match = re.search(
-
-            rf"{nutrient}\s+between\s+(\d+(?:\.\d+)?)\s+and\s+(\d+(?:\.\d+)?)",
-
-            query
+            value,
 
         )
 
-        if match:
+        setattr(
 
-            setattr(filters, min_field, float(match.group(1)))
-            setattr(filters, max_field, float(match.group(2)))
+            filters,
 
-            return
+            f"{nutrient}_min_operator",
 
-        # ====================================================
-        # between 100 and 200 calories
-        # between 20 and 30 protein
-        # ====================================================
-
-        match = re.search(
-
-            rf"between\s+(\d+(?:\.\d+)?)\s+and\s+(\d+(?:\.\d+)?)\s+{nutrient}",
-
-            query
+            operator,
 
         )
 
-        if match:
+    # ---------------------------------------------------------
 
-            setattr(filters, min_field, float(match.group(1)))
-            setattr(filters, max_field, float(match.group(2)))
+    def _set_max(
 
-            return
+        self,
 
-        # ====================================================
-        # protein 20-30
-        # ====================================================
+        nutrient,
 
-        match = re.search(
+        filters,
 
-            rf"{nutrient}\s+(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)",
+        config,
 
-            query
+        value,
+
+        operator,
+
+    ):
+
+        setattr(
+
+            filters,
+
+            config["max_filter"],
+
+            value,
 
         )
 
-        if match:
+        setattr(
 
-            setattr(filters, min_field, float(match.group(1)))
-            setattr(filters, max_field, float(match.group(2)))
+            filters,
+
+            f"{nutrient}_max_operator",
+
+            operator,
+
+        )
+        # ---------------------------------------------------------
+
+    def _extract_units(
+
+        self,
+
+        alias,
+
+        nutrient,
+
+        query,
+
+        filters,
+
+        config,
+
+    ):
+
+        """
+        Handles
+
+        20g protein
+        100 calories
+        100 kcal
+        500 mg sodium
+        """
+
+        #
+        # Don't overwrite values already
+        # extracted by between/min/max.
+        #
+
+        if getattr(filters, config["min_filter"]) is not None:
+            return
+
+        if getattr(filters, config["max_filter"]) is not None:
+            return
+
+        for pattern in self.unit_patterns:
+
+            regex = pattern.format(
+
+                name=re.escape(alias)
+
+            )
+
+            match = re.search(
+
+                regex,
+
+                query,
+
+            )
+
+            if not match:
+                continue
+
+            value = float(
+
+                match.group(1)
+
+            )
+
+            #
+            # Default interpretation:
+            #
+            # "20g protein"
+            #
+            # means
+            #
+            # protein >= 20
+            #
+
+            self._set_min(
+
+                nutrient,
+
+                filters,
+
+                config,
+
+                value,
+
+                ">=",
+
+            )
 
             return
 
-        # ====================================================
-        # Comparison Patterns
-        # ====================================================
+    # ---------------------------------------------------------
 
-        patterns = [
+    @staticmethod
+    def _contains_number(
 
-            # protein >20
+        text,
 
-            (rf"{nutrient}\s*>\s*(\d+(?:\.\d+)?)",
-             min_field,
-             min_operator_field,
-             ">"),
+    ):
 
-            # protein >=20
+        return bool(
 
-            (rf"{nutrient}\s*>=\s*(\d+(?:\.\d+)?)",
-             min_field,
-             min_operator_field,
-             ">="),
+            re.search(
 
-            # protein <20
+                r"\d",
 
-            (rf"{nutrient}\s*<\s*(\d+(?:\.\d+)?)",
-             max_field,
-             max_operator_field,
-             "<"),
+                text,
 
-            # protein <=20
+            )
 
-            (rf"{nutrient}\s*<=\s*(\d+(?:\.\d+)?)",
-             max_field,
-             max_operator_field,
-             "<="),
+        )
 
-            # protein greater than 20
+    # ---------------------------------------------------------
 
-            (rf"{nutrient}\s+greater than\s+(\d+(?:\.\d+)?)",
-             min_field,
-             min_operator_field,
-             ">"),
+    @staticmethod
+    def _normalize_spaces(
 
-            # protein more than 20
+        text,
 
-            (rf"{nutrient}\s+more than\s+(\d+(?:\.\d+)?)",
-             min_field,
-             min_operator_field,
-             ">"),
+    ):
 
-            # protein above 20
+        return re.sub(
 
-            (rf"{nutrient}\s+above\s+(\d+(?:\.\d+)?)",
-             min_field,
-             min_operator_field,
-             ">"),
+            r"\s+",
 
-            # protein over 20
+            " ",
 
-            (rf"{nutrient}\s+over\s+(\d+(?:\.\d+)?)",
-             min_field,
-             min_operator_field,
-             ">"),
+            text,
 
-            # protein less than 20
-
-            (rf"{nutrient}\s+less than\s+(\d+(?:\.\d+)?)",
-             max_field,
-             max_operator_field,
-             "<"),
-
-            # protein below 20
-
-            (rf"{nutrient}\s+below\s+(\d+(?:\.\d+)?)",
-             max_field,
-             max_operator_field,
-             "<"),
-
-            # protein under 20
-
-            (rf"{nutrient}\s+under\s+(\d+(?:\.\d+)?)",
-             max_field,
-             max_operator_field,
-             "<"),
-
-            # greater than 20g protein
-
-            (rf"greater than\s+(\d+(?:\.\d+)?)g?\s*{nutrient}",
-             min_field,
-             min_operator_field,
-             ">"),
-
-            # less than 5g sugar
-
-            (rf"less than\s+(\d+(?:\.\d+)?)g?\s*{nutrient}",
-             max_field,
-             max_operator_field,
-             "<"),
-
-            # at least
-
-            (rf"at least\s+(\d+(?:\.\d+)?)g?\s*{nutrient}",
-             min_field,
-             min_operator_field,
-             ">="),
-
-            # at most
-
-            (rf"at most\s+(\d+(?:\.\d+)?)g?\s*{nutrient}",
-             max_field,
-             max_operator_field,
-             "<=")
-
-        ]
-
-        for pattern, field, operator_field, operator in patterns:
-
-            match = re.search(pattern, query)
-
-            if match:
-
-                setattr(
-
-                    filters,
-
-                    field,
-
-                    float(match.group(1))
-
-                )
-
-                setattr(
-
-                    filters,
-
-                    operator_field,
-
-                    operator
-
-                )
-
-                return
+        ).strip()

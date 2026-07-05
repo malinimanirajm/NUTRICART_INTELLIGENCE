@@ -26,3 +26,7 @@ weaviate-client
 
 guardrails-ai
 rapidfuzz
+
+
+pytest
+sentence-transformers

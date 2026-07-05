@@ -1,44 +1,36 @@
 """
-Filter Builder
+Generic Weaviate Filter Builder
 
 Converts SearchFilters into Weaviate Filters.
-
-Responsibilities
-----------------
-1. Category Filter
-2. Brand Filter
-3. Nutrition Filters
-4. Preference Filters
-
-No Parsing
-No Repository
 """
 
-from dataclasses import asdict
+from functools import reduce
+from operator import and_
 
 from weaviate.classes.query import Filter
 
-from config.search_config import NUTRIENTS
-
-from agents.search.filters import SearchFilters
+from config.search_config import (
+    NUTRIENTS,
+    PREFERENCES,
+)
 
 
 class FilterBuilder:
 
-    # -------------------------------------------------
+    def __init__(self):
 
-    def build(
-        self,
-        filters: SearchFilters
-    ):
+        self.nutrients = NUTRIENTS
+        self.preferences = PREFERENCES
+
+    # -----------------------------------------------------
+
+    def build(self, filters):
 
         expressions = []
 
-        data = asdict(filters)
-
-        # ============================================
+        #
         # Category
-        # ============================================
+        #
 
         if filters.category:
 
@@ -46,15 +38,13 @@ class FilterBuilder:
 
                 Filter.by_property(
                     "category_name"
-                ).equal(
-                    filters.category
-                )
+                ).equal(filters.category)
 
             )
 
-        # ============================================
+        #
         # Brand
-        # ============================================
+        #
 
         if filters.brand:
 
@@ -62,176 +52,247 @@ class FilterBuilder:
 
                 Filter.by_property(
                     "brand_name"
-                ).equal(
-                    filters.brand
-                )
+                ).equal(filters.brand)
 
             )
 
-        # ============================================
+        #
         # Nutrition
-        # ============================================
-
-        for nutrient, config in NUTRIENTS.items():
-
-            db_field = config["db_field"]
-
-            min_filter = config["min_filter"]
-
-            max_filter = config["max_filter"]
-
-            min_operator = data.get(
-
-                f"{nutrient}_min_operator",
-
-                ">="
-
-            )
-
-            max_operator = data.get(
-
-                f"{nutrient}_max_operator",
-
-                "<="
-
-            )
-
-            # -----------------------
-            # Minimum
-            # -----------------------
-
-            if data[min_filter] is not None:
-
-                expr = Filter.by_property(db_field)
-
-                if min_operator == ">":
-
-                    expr = expr.greater_than(
-
-                        data[min_filter]
-
-                    )
-
-                else:
-
-                    expr = expr.greater_or_equal(
-
-                        data[min_filter]
-
-                    )
-
-                expressions.append(expr)
-
-            # -----------------------
-            # Maximum
-            # -----------------------
-
-            if data[max_filter] is not None:
-
-                expr = Filter.by_property(db_field)
-
-                if max_operator == "<":
-
-                    expr = expr.less_than(
-
-                        data[max_filter]
-
-                    )
-
-                else:
-
-                    expr = expr.less_or_equal(
-
-                        data[max_filter]
-
-                    )
-
-                expressions.append(expr)
-
-        # ============================================
-        # Preferences
-        # ============================================
-
-        #
-        # Dataset currently has no
-        #
-        # vegan
-        # organic
-        # gluten_free
-        #
-        # properties.
-        #
-        # Enable once schema supports them.
         #
 
-        if filters.diabetic:
+        expressions.extend(
 
-            expressions.append(
+            self._nutrition_filters(filters)
 
-                Filter.by_property(
+        )
 
-                    "added_sugar_g"
+        #
+        # Dietary Preferences
+        #
 
-                ).less_or_equal(
+        expressions.extend(
 
-                    5
+            self._preference_filters(filters)
 
-                )
-
-            )
-
-        # Uncomment later
-        #
-        # if filters.vegan:
-        #
-        #     expressions.append(
-        #
-        #         Filter.by_property(
-        #
-        #             "is_vegan"
-        #
-        #         ).equal(True)
-        #
-        #     )
-        #
-        #
-        # if filters.organic:
-        #
-        #     expressions.append(
-        #
-        #         Filter.by_property(
-        #
-        #             "is_organic"
-        #
-        #         ).equal(True)
-        #
-        #     )
-        #
-        #
-        # if filters.gluten_free:
-        #
-        #     expressions.append(
-        #
-        #         Filter.by_property(
-        #
-        #             "is_gluten_free"
-        #
-        #         ).equal(True)
-        #
-        #     )
-
-        # ============================================
-        # No Filters
-        # ============================================
+        )
 
         if not expressions:
 
             return None
 
-        result = expressions[0]
+        return reduce(and_, expressions)
 
-        for expression in expressions[1:]:
+    # -----------------------------------------------------
 
-            result &= expression
+    def _nutrition_filters(self, filters):
 
-        return result
+        expressions = []
+
+        for nutrient, config in self.nutrients.items():
+
+            db_field = config["db_field"]
+
+            minimum = getattr(
+
+                filters,
+
+                config["min_filter"],
+
+            )
+
+            maximum = getattr(
+
+                filters,
+
+                config["max_filter"],
+
+            )
+
+            min_operator = getattr(
+
+                filters,
+
+                f"{nutrient}_min_operator",
+
+                ">=",
+
+            )
+
+            max_operator = getattr(
+
+                filters,
+
+                f"{nutrient}_max_operator",
+
+                "<=",
+
+            )
+
+            #
+            # Minimum
+            #
+
+            if minimum is not None:
+
+                expressions.append(
+
+                    self._comparison(
+
+                        db_field,
+
+                        minimum,
+
+                        min_operator,
+
+                    )
+
+                )
+
+            #
+            # Maximum
+            #
+
+            if maximum is not None:
+
+                expressions.append(
+
+                    self._comparison(
+
+                        db_field,
+
+                        maximum,
+
+                        max_operator,
+
+                    )
+
+                )
+
+        return expressions
+
+    # -----------------------------------------------------
+
+    def _preference_filters(self, filters):
+
+        expressions = []
+
+        #
+        # SearchFilters attribute
+        #          ↓
+        # Weaviate Property
+        #
+
+        preference_map = {
+
+            "organic": "is_organic_available",
+
+            "vegan": "is_vegan",
+
+            "gluten_free": "is_gluten_free",
+
+            "diabetic": "diabetic_friendly",
+
+            #
+            # Future Features
+            #
+
+            "heart_healthy": "heart_healthy",
+
+            "high_protein": "high_protein",
+
+            "low_sugar": "low_sugar",
+
+        }
+
+        for attribute, property_name in preference_map.items():
+
+            #
+            # Skip attributes that don't
+            # exist yet in SearchFilters.
+            #
+
+            if not hasattr(filters, attribute):
+
+                continue
+
+            if getattr(filters, attribute):
+
+                expressions.append(
+
+                    Filter.by_property(
+
+                        property_name
+
+                    ).equal(True)
+
+                )
+
+        return expressions
+
+    # -----------------------------------------------------
+
+    def _comparison(
+
+        self,
+
+        property_name,
+
+        value,
+
+        operator,
+
+    ):
+
+        if operator == ">":
+
+            return (
+
+                Filter.by_property(
+
+                    property_name
+
+                ).greater_than(value)
+
+            )
+
+        if operator == ">=":
+
+            return (
+
+                Filter.by_property(
+
+                    property_name
+
+                ).greater_or_equal(value)
+
+            )
+
+        if operator == "<":
+
+            return (
+
+                Filter.by_property(
+
+                    property_name
+
+                ).less_than(value)
+
+            )
+
+        if operator == "<=":
+
+            return (
+
+                Filter.by_property(
+
+                    property_name
+
+                ).less_or_equal(value)
+
+            )
+
+        raise ValueError(
+
+            f"Unsupported operator: {operator}"
+
+        )
